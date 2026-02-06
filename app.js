@@ -159,9 +159,15 @@ function generateWordPreview(data) {
     const doctorIndex = headers.findIndex(h => String(h).toLowerCase().includes('doctor'));
     const personalRemindersIndex = headers.findIndex(h => String(h).toLowerCase().includes('personal reminders'));
 
+    // Get date range for header
+    const dateRange = getDateRange(data);
+    const headerText = dateRange.min && dateRange.max 
+        ? `PATIENT REPORT | ${dateRange.min} - ${dateRange.max}`
+        : 'PATIENT REPORT';
+
     // Build HTML preview
     let html = '<div class="document-preview">';
-    html += '<h3 class="mb-3">Patient Reports</h3>';
+    html += `<h3 class="mb-3">${escapeHtml(headerText)}</h3>`;
     html += `<p class="text-muted mb-4">Generated on: ${new Date().toLocaleString()}</p>`;
 
     rows.forEach((row, index) => {
@@ -349,6 +355,72 @@ function excelDateToJSDate(serial) {
     return String(serial);
 }
 
+// Helper function to format date for header (e.g., "Jan 21")
+function formatHeaderDate(dateValue) {
+    if (!dateValue) return '';
+    
+    let date;
+    
+    // If it's an Excel serial number, convert it
+    if (typeof dateValue === 'number' || !isNaN(dateValue)) {
+        const utc_days = Math.floor(dateValue - 25569);
+        const utc_value = utc_days * 86400;
+        date = new Date(utc_value * 1000);
+    } else {
+        // Try to parse as date string
+        date = new Date(dateValue);
+    }
+    
+    // If invalid date, return empty
+    if (isNaN(date.getTime())) {
+        return String(dateValue);
+    }
+    
+    // Format as "Mon DD" (e.g., "Jan 21")
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                       "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const month = monthNames[date.getMonth()];
+    const day = date.getDate();
+    
+    return `${month} ${day}`;
+}
+
+// Helper function to get min and max dates from data
+function getDateRange(data) {
+    if (!data || data.length <= 1) return { min: '', max: '' };
+    
+    const headers = data[0] || [];
+    const rows = data.slice(1);
+    const visitDateIndex = headers.findIndex(h => String(h).toLowerCase().includes('visit date'));
+    
+    if (visitDateIndex === -1) return { min: '', max: '' };
+    
+    const dates = rows
+        .map(row => row[visitDateIndex])
+        .filter(date => date !== undefined && date !== null && date !== '');
+    
+    if (dates.length === 0) return { min: '', max: '' };
+    
+    // Convert all to comparable format
+    const comparableDates = dates.map(d => {
+        if (typeof d === 'number') return d;
+        const parsed = new Date(d);
+        return isNaN(parsed.getTime()) ? 0 : parsed.getTime();
+    });
+    
+    const minValue = Math.min(...comparableDates);
+    const maxValue = Math.max(...comparableDates);
+    
+    // Find original values
+    const minIndex = comparableDates.indexOf(minValue);
+    const maxIndex = comparableDates.indexOf(maxValue);
+    
+    return {
+        min: formatHeaderDate(dates[minIndex]),
+        max: formatHeaderDate(dates[maxIndex])
+    };
+}
+
 // Helper function to format any date value
 function formatDate(dateValue) {
     if (!dateValue) return '';
@@ -370,11 +442,18 @@ function createDocumentContent(data, lib) {
     
     const children = [];
 
-    // Add title
+    // Get date range for header
+    const dateRange = getDateRange(data);
+    const headerText = dateRange.min && dateRange.max 
+        ? `PATIENT REPORT | ${dateRange.min} - ${dateRange.max}`
+        : 'PATIENT REPORT';
+
+    // Add title with date range
     children.push(
         new docxLib.Paragraph({
-            text: 'Patient Reports',
+            text: headerText,
             heading: docxLib.HeadingLevel.HEADING_1,
+            font: 'Calibri',
             spacing: {
                 after: 300
             }
@@ -385,6 +464,7 @@ function createDocumentContent(data, lib) {
     children.push(
         new docxLib.Paragraph({
             text: `Generated on: ${new Date().toLocaleString()}`,
+            font: 'Calibri',
             spacing: {
                 after: 400
             }
@@ -406,14 +486,11 @@ function createDocumentContent(data, lib) {
         // Process each patient record
         rows.forEach((row, index) => {
             if (index > 0) {
-                // Add separator line between records
+                // Add page break between records
                 children.push(
                     new docxLib.Paragraph({
-                        text: '_____________________',
-                        spacing: {
-                            before: 200,
-                            after: 200
-                        }
+                        text: '',
+                        pageBreakBefore: true
                     })
                 );
             }
@@ -428,26 +505,103 @@ function createDocumentContent(data, lib) {
             // Determine remarks
             const remarks = getRemarks(personalReminders);
 
-            // Add formatted patient record
+            // Add formatted patient record with bold labels, Calibri font, and size 12pt
+            // Date: [Visit Date]
             children.push(
                 new docxLib.Paragraph({
-                    text: `Date: ${visitDate}`,
+                    children: [
+                        new docxLib.TextRun({
+                            text: 'Date',
+                            bold: true,
+                            font: 'Calibri',
+                            size: 24  // 12pt (size is in half-points)
+                        }),
+                        new docxLib.TextRun({
+                            text: `: ${visitDate}`,
+                            font: 'Calibri',
+                            size: 24  // 12pt
+                        })
+                    ],
                     spacing: { after: 100 }
-                }),
+                })
+            );
+            
+            // File Number: [PT NO.]
+            children.push(
                 new docxLib.Paragraph({
-                    text: ` File Number: ${ptNo}`,
+                    children: [
+                        new docxLib.TextRun({
+                            text: ' File Number',
+                            bold: true,
+                            font: 'Calibri',
+                            size: 24  // 12pt
+                        }),
+                        new docxLib.TextRun({
+                            text: `: ${ptNo}`,
+                            font: 'Calibri',
+                            size: 24  // 12pt
+                        })
+                    ],
                     spacing: { after: 100 }
-                }),
+                })
+            );
+            
+            // Patient Name: [Patient Name]
+            children.push(
                 new docxLib.Paragraph({
-                    text: ` Patient Name: ${patientName}`,
+                    children: [
+                        new docxLib.TextRun({
+                            text: ' Patient Name',
+                            bold: true,
+                            font: 'Calibri',
+                            size: 24  // 12pt
+                        }),
+                        new docxLib.TextRun({
+                            text: `: ${patientName}`,
+                            font: 'Calibri',
+                            size: 24  // 12pt
+                        })
+                    ],
                     spacing: { after: 100 }
-                }),
+                })
+            );
+            
+            // Doctor Name: [Doctor]
+            children.push(
                 new docxLib.Paragraph({
-                    text: ` Doctor Name: ${doctor}`,
+                    children: [
+                        new docxLib.TextRun({
+                            text: ' Doctor Name',
+                            bold: true,
+                            font: 'Calibri',
+                            size: 24  // 12pt
+                        }),
+                        new docxLib.TextRun({
+                            text: `: ${doctor}`,
+                            font: 'Calibri',
+                            size: 24  // 12pt
+                        })
+                    ],
                     spacing: { after: 100 }
-                }),
+                })
+            );
+            
+            // Remarks: [remarks]
+            children.push(
                 new docxLib.Paragraph({
-                    text: ` Remarks: ${remarks}`,
+                    children: [
+                        new docxLib.TextRun({
+                            text: ' Remarks',
+                            bold: true,
+                            font: 'Calibri',
+                            size: 24  // 12pt
+                        }),
+                        new docxLib.TextRun({
+                            text: `: ${remarks}`,
+                            font: 'Calibri',
+                            size: 24  // 12pt
+                        })
+                    ],
                     spacing: { after: 100 }
                 })
             );
@@ -456,6 +610,7 @@ function createDocumentContent(data, lib) {
         children.push(
             new docxLib.Paragraph({
                 text: 'No data available.',
+                font: 'Calibri',
                 spacing: {
                     before: 200
                 }
