@@ -168,7 +168,6 @@ function generateWordPreview(data) {
     // Build HTML preview
     let html = '<div class="document-preview">';
     html += `<h3 class="mb-3">${escapeHtml(headerText)}</h3>`;
-    html += `<p class="text-muted mb-4">Generated on: ${new Date().toLocaleString()}</p>`;
 
     rows.forEach((row, index) => {
         if (index > 0) {
@@ -461,20 +460,15 @@ function createDocumentContent(data, lib) {
     // Add title with date range
     children.push(
         new docxLib.Paragraph({
-            text: headerText,
-            heading: docxLib.HeadingLevel.HEADING_1,
-            font: 'Calibri',
-            spacing: {
-                after: 300
-            }
-        })
-    );
-
-    // Add generation date
-    children.push(
-        new docxLib.Paragraph({
-            text: `Generated on: ${new Date().toLocaleString()}`,
-            font: 'Calibri',
+            children: [
+                new docxLib.TextRun({
+                    text: headerText,
+                    font: 'Calibri',
+                    size: 32,  // 16pt for heading
+                    bold: true,
+                    color: '000000'  // Black text
+                })
+            ],
             spacing: {
                 after: 400
             }
@@ -496,11 +490,22 @@ function createDocumentContent(data, lib) {
         // Process each patient record
         rows.forEach((row, index) => {
             if (index > 0) {
-                // Add page break between records
+                // Add horizontal line separator between records
                 children.push(
                     new docxLib.Paragraph({
                         text: '',
-                        pageBreakBefore: true
+                        border: {
+                            top: {
+                                color: '000000',
+                                space: 1,
+                                style: 'single',
+                                size: 6
+                            }
+                        },
+                        spacing: {
+                            before: 200,
+                            after: 200
+                        }
                     })
                 );
             }
@@ -524,12 +529,14 @@ function createDocumentContent(data, lib) {
                             text: 'Date',
                             bold: true,
                             font: 'Calibri',
-                            size: 24  // 12pt (size is in half-points)
+                            size: 24,  // 12pt (size is in half-points)
+                            color: '000000'  // Black text
                         }),
                         new docxLib.TextRun({
                             text: `: ${visitDate}`,
                             font: 'Calibri',
-                            size: 24  // 12pt
+                            size: 24,  // 12pt
+                            color: '000000'  // Black text
                         })
                     ],
                     spacing: { after: 100 }
@@ -544,12 +551,14 @@ function createDocumentContent(data, lib) {
                             text: ' File Number',
                             bold: true,
                             font: 'Calibri',
-                            size: 24  // 12pt
+                            size: 24,  // 12pt
+                            color: '000000'  // Black text
                         }),
                         new docxLib.TextRun({
                             text: `: ${ptNo}`,
                             font: 'Calibri',
-                            size: 24  // 12pt
+                            size: 24,  // 12pt
+                            color: '000000'  // Black text
                         })
                     ],
                     spacing: { after: 100 }
@@ -564,12 +573,14 @@ function createDocumentContent(data, lib) {
                             text: ' Patient Name',
                             bold: true,
                             font: 'Calibri',
-                            size: 24  // 12pt
+                            size: 24,  // 12pt
+                            color: '000000'  // Black text
                         }),
                         new docxLib.TextRun({
                             text: `: ${patientName}`,
                             font: 'Calibri',
-                            size: 24  // 12pt
+                            size: 24,  // 12pt
+                            color: '000000'  // Black text
                         })
                     ],
                     spacing: { after: 100 }
@@ -584,12 +595,14 @@ function createDocumentContent(data, lib) {
                             text: ' Doctor Name',
                             bold: true,
                             font: 'Calibri',
-                            size: 24  // 12pt
+                            size: 24,  // 12pt
+                            color: '000000'  // Black text
                         }),
                         new docxLib.TextRun({
                             text: `: ${doctor}`,
                             font: 'Calibri',
-                            size: 24  // 12pt
+                            size: 24,  // 12pt
+                            color: '000000'  // Black text
                         })
                     ],
                     spacing: { after: 100 }
@@ -604,12 +617,14 @@ function createDocumentContent(data, lib) {
                             text: ' Remarks',
                             bold: true,
                             font: 'Calibri',
-                            size: 24  // 12pt
+                            size: 24,  // 12pt
+                            color: '000000'  // Black text
                         }),
                         new docxLib.TextRun({
                             text: `: ${remarks}`,
                             font: 'Calibri',
-                            size: 24  // 12pt
+                            size: 24,  // 12pt
+                            color: '000000'  // Black text
                         })
                     ],
                     spacing: { after: 100 }
