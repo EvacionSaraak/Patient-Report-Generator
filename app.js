@@ -2,6 +2,7 @@
 let workbookData = null;
 let parsedData = null;
 let previewContent = null; // Store preview content for editing
+let docxLib = null; // Store docx library reference
 
 // DOM elements
 const fileInput = document.getElementById('fileInput');
@@ -13,6 +14,20 @@ const dataPreview = document.getElementById('dataPreview');
 const wordPreviewSection = document.getElementById('wordPreviewSection');
 const wordPreview = document.getElementById('wordPreview');
 const refreshPreviewBtn = document.getElementById('refreshPreviewBtn');
+
+// Wait for libraries to load
+window.addEventListener('load', function() {
+    // Check if docx library is loaded
+    if (typeof docx !== 'undefined') {
+        docxLib = docx;
+        console.log('docx library loaded successfully');
+    } else if (window.docx) {
+        docxLib = window.docx;
+        console.log('docx library loaded from window');
+    } else {
+        console.error('docx library not found');
+    }
+});
 
 // Event listeners
 fileInput.addEventListener('change', handleFileSelect);
@@ -152,7 +167,7 @@ function generateWordPreview(data) {
 
         const ptNo = row[ptNoIndex] !== undefined ? String(row[ptNoIndex]) : '';
         const patientName = row[patientNameIndex] !== undefined ? String(row[patientNameIndex]) : '';
-        const visitDate = row[visitDateIndex] !== undefined ? String(row[visitDateIndex]) : '';
+        const visitDate = row[visitDateIndex] !== undefined ? formatDate(row[visitDateIndex]) : '';
         const doctor = row[doctorIndex] !== undefined ? String(row[doctorIndex]) : '';
         const personalReminders = row[personalRemindersIndex] !== undefined ? row[personalRemindersIndex] : '';
         const remarks = getRemarks(personalReminders);
@@ -191,21 +206,17 @@ async function generateWordDocument() {
         showStatus('Generating Word document...', 'info');
         downloadBtn.disabled = true;
 
-        // Wait for docx library to be available
-        if (typeof docx === 'undefined') {
-            // Try to access from window
-            if (window.docx) {
-                window.docx = window.docx;
-            } else {
-                throw new Error('docx library is not loaded. Please refresh the page.');
-            }
+        // Check if docx library is available
+        const lib = docxLib || window.docx || docx;
+        if (!lib) {
+            throw new Error('docx library is not loaded. Please refresh the page and try again.');
         }
 
         // Get edited content from preview or use original data
-        const contentToUse = getEditedContent();
+        const contentToUse = getEditedContent(lib);
 
         // Create a new document using docx
-        const doc = new docx.Document({
+        const doc = new lib.Document({
             sections: [{
                 properties: {},
                 children: contentToUse
@@ -213,7 +224,7 @@ async function generateWordDocument() {
         });
 
         // Generate and download the document
-        const blob = await docx.Packer.toBlob(doc);
+        const blob = await lib.Packer.toBlob(doc);
         saveAs(blob, 'patient-report.docx');
         
         showStatus('Word document generated successfully!', 'success');
@@ -226,7 +237,7 @@ async function generateWordDocument() {
 }
 
 // Get edited content from preview or generate from data
-function getEditedContent() {
+function getEditedContent(lib) {
     // Parse the edited HTML preview to extract text
     const previewDiv = wordPreview;
     const paragraphs = [];
@@ -242,9 +253,9 @@ function getEditedContent() {
             // Check if it's a title
             if (trimmedLine === 'Patient Reports') {
                 paragraphs.push(
-                    new docx.Paragraph({
+                    new lib.Paragraph({
                         text: trimmedLine,
-                        heading: docx.HeadingLevel.HEADING_1,
+                        heading: lib.HeadingLevel.HEADING_1,
                         spacing: { after: 300 }
                     })
                 );
@@ -252,7 +263,7 @@ function getEditedContent() {
             // Check if it's a separator
             else if (trimmedLine.includes('___') || trimmedLine === '---') {
                 paragraphs.push(
-                    new docx.Paragraph({
+                    new lib.Paragraph({
                         text: '_____________________',
                         spacing: { before: 200, after: 200 }
                     })
@@ -261,7 +272,7 @@ function getEditedContent() {
             // Regular content
             else {
                 paragraphs.push(
-                    new docx.Paragraph({
+                    new lib.Paragraph({
                         text: trimmedLine,
                         spacing: { after: 100 }
                     })
@@ -270,10 +281,10 @@ function getEditedContent() {
         });
     } else {
         // Fallback to original data
-        return createDocumentContent(parsedData);
+        return createDocumentContent(parsedData, lib);
     }
 
-    return paragraphs.length > 0 ? paragraphs : createDocumentContent(parsedData);
+    return paragraphs.length > 0 ? paragraphs : createDocumentContent(parsedData, lib);
 }
 
 // Helper function to generate remarks from Personal Reminders field
@@ -288,15 +299,71 @@ function getRemarks(personalReminders) {
     return '';
 }
 
+// Helper function to convert Excel serial date to readable format
+function excelDateToJSDate(serial) {
+    // Check if it's already a string date
+    if (typeof serial === 'string' && isNaN(serial)) {
+        return serial;
+    }
+    
+    // Check if it's a number (Excel serial date)
+    if (typeof serial === 'number' || !isNaN(serial)) {
+        const utc_days = Math.floor(serial - 25569);
+        const utc_value = utc_days * 86400;
+        const date_info = new Date(utc_value * 1000);
+
+        const fractional_day = serial - Math.floor(serial) + 0.0000001;
+
+        let total_seconds = Math.floor(86400 * fractional_day);
+
+        const seconds = total_seconds % 60;
+
+        total_seconds -= seconds;
+
+        const hours = Math.floor(total_seconds / (60 * 60));
+        const minutes = Math.floor(total_seconds / 60) % 60;
+
+        const date = new Date(date_info.getFullYear(), date_info.getMonth(), date_info.getDate(), hours, minutes, seconds);
+        
+        // Format as "DD Month YYYY"
+        const day = date.getDate();
+        const monthNames = ["January", "February", "March", "April", "May", "June",
+                           "July", "August", "September", "October", "November", "December"];
+        const month = monthNames[date.getMonth()];
+        const year = date.getFullYear();
+        
+        return `${day} ${month} ${year}`;
+    }
+    
+    return String(serial);
+}
+
+// Helper function to format any date value
+function formatDate(dateValue) {
+    if (!dateValue) return '';
+    
+    // If it's already formatted nicely, return it
+    const str = String(dateValue);
+    if (str.match(/\d{1,2}\s+\w+\s+\d{4}/)) {
+        return str;
+    }
+    
+    // Otherwise convert from Excel serial
+    return excelDateToJSDate(dateValue);
+}
+
 // Create document content
-function createDocumentContent(data) {
+function createDocumentContent(data, lib) {
+    // Use the provided lib or try to get it from global scope
+    const docxLib = lib || docxLib || window.docx || docx;
+    
     const children = [];
 
     // Add title
     children.push(
-        new docx.Paragraph({
+        new docxLib.Paragraph({
             text: 'Patient Reports',
-            heading: docx.HeadingLevel.HEADING_1,
+            heading: docxLib.HeadingLevel.HEADING_1,
             spacing: {
                 after: 300
             }
@@ -305,7 +372,7 @@ function createDocumentContent(data) {
 
     // Add generation date
     children.push(
-        new docx.Paragraph({
+        new docxLib.Paragraph({
             text: `Generated on: ${new Date().toLocaleString()}`,
             spacing: {
                 after: 400
@@ -330,7 +397,7 @@ function createDocumentContent(data) {
             if (index > 0) {
                 // Add separator line between records
                 children.push(
-                    new docx.Paragraph({
+                    new docxLib.Paragraph({
                         text: '_____________________',
                         spacing: {
                             before: 200,
@@ -343,7 +410,7 @@ function createDocumentContent(data) {
             // Extract data from row
             const ptNo = row[ptNoIndex] !== undefined ? String(row[ptNoIndex]) : '';
             const patientName = row[patientNameIndex] !== undefined ? String(row[patientNameIndex]) : '';
-            const visitDate = row[visitDateIndex] !== undefined ? String(row[visitDateIndex]) : '';
+            const visitDate = row[visitDateIndex] !== undefined ? formatDate(row[visitDateIndex]) : '';
             const doctor = row[doctorIndex] !== undefined ? String(row[doctorIndex]) : '';
             const personalReminders = row[personalRemindersIndex] !== undefined ? row[personalRemindersIndex] : '';
 
@@ -352,23 +419,23 @@ function createDocumentContent(data) {
 
             // Add formatted patient record
             children.push(
-                new docx.Paragraph({
+                new docxLib.Paragraph({
                     text: `Date: ${visitDate}`,
                     spacing: { after: 100 }
                 }),
-                new docx.Paragraph({
+                new docxLib.Paragraph({
                     text: ` File Number: ${ptNo}`,
                     spacing: { after: 100 }
                 }),
-                new docx.Paragraph({
+                new docxLib.Paragraph({
                     text: ` Patient Name: ${patientName}`,
                     spacing: { after: 100 }
                 }),
-                new docx.Paragraph({
+                new docxLib.Paragraph({
                     text: ` Doctor Name: ${doctor}`,
                     spacing: { after: 100 }
                 }),
-                new docx.Paragraph({
+                new docxLib.Paragraph({
                     text: ` Remarks: ${remarks}`,
                     spacing: { after: 100 }
                 })
@@ -376,7 +443,7 @@ function createDocumentContent(data) {
         });
     } else {
         children.push(
-            new docx.Paragraph({
+            new docxLib.Paragraph({
                 text: 'No data available.',
                 spacing: {
                     before: 200

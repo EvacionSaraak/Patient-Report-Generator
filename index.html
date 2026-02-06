@@ -11,65 +11,80 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="container py-4">
+    <div class="container-fluid py-4">
         <header class="text-center mb-4">
             <h1 class="display-4">Patient Report Generator</h1>
             <p class="lead">Upload an XLSX file to generate a Word document report</p>
         </header>
 
         <main>
-            <div class="upload-section mb-4">
-                <div class="file-input-wrapper">
-                    <input type="file" id="fileInput" accept=".xlsx, .xls" class="file-input">
-                    <label for="fileInput" class="file-label">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <div class="row">
+                <!-- Left Column: Upload and Data Preview -->
+                <div class="col-lg-6 mb-4">
+                    <div class="upload-section mb-4">
+                        <div class="file-input-wrapper">
+                            <input type="file" id="fileInput" accept=".xlsx, .xls" class="file-input">
+                            <label for="fileInput" class="file-label">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                    <polyline points="17 8 12 3 7 8"></polyline>
+                                    <line x1="12" y1="3" x2="12" y2="15"></line>
+                                </svg>
+                                <span class="label-text">Choose XLSX File</span>
+                            </label>
+                        </div>
+                        <p id="fileName" class="file-name text-center mt-2"></p>
+                    </div>
+
+                    <div id="previewSection" class="preview-section card mb-4" style="display: none;">
+                        <div class="card-header">
+                            <h2 class="h5 mb-0">XLSX Data Preview</h2>
+                        </div>
+                        <div class="card-body">
+                            <div id="dataPreview" class="data-preview"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Column: Word Document Preview -->
+                <div class="col-lg-6 mb-4">
+                    <div id="wordPreviewSection" class="word-preview-section card sticky-preview" style="display: none;">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h2 class="h5 mb-0">Word Document Preview (Editable)</h2>
+                            <button id="refreshPreviewBtn" class="btn btn-sm btn-outline-primary">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-clockwise" viewBox="0 0 16 16">
+                                    <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/>
+                                    <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/>
+                                </svg>
+                                Refresh
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <div id="wordPreview" class="word-preview border rounded p-3" contenteditable="true">
+                                <!-- Preview content will be inserted here -->
+                            </div>
+                            <div class="alert alert-info mt-3 mb-0">
+                                <small><strong>💡 Tip:</strong> You can edit the content above before downloading. Changes will be included in the final document.</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Download Button Section (Full Width) -->
+            <div class="row">
+                <div class="col-12 text-center">
+                    <button id="downloadBtn" class="btn btn-primary btn-lg" disabled>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2">
                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                            <polyline points="17 8 12 3 7 8"></polyline>
-                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
                         </svg>
-                        <span class="label-text">Choose XLSX File</span>
-                    </label>
-                </div>
-                <p id="fileName" class="file-name text-center mt-2"></p>
-            </div>
-
-            <div id="previewSection" class="preview-section card mb-4" style="display: none;">
-                <div class="card-header">
-                    <h2 class="h5 mb-0">Data Preview</h2>
-                </div>
-                <div class="card-body">
-                    <div id="dataPreview" class="data-preview"></div>
+                        Download Word Report
+                    </button>
+                    <div id="status" class="status-message mt-3"></div>
                 </div>
             </div>
-
-            <!-- Editable Word Document Preview -->
-            <div id="wordPreviewSection" class="word-preview-section card mb-4" style="display: none;">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h2 class="h5 mb-0">Word Document Preview (Editable)</h2>
-                    <button id="refreshPreviewBtn" class="btn btn-sm btn-outline-primary">Refresh Preview</button>
-                </div>
-                <div class="card-body">
-                    <div id="wordPreview" class="word-preview border rounded p-3" contenteditable="true">
-                        <!-- Preview content will be inserted here -->
-                    </div>
-                    <div class="alert alert-info mt-3 mb-0">
-                        <small><strong>Tip:</strong> You can edit the content above before downloading. Changes will be included in the final document.</small>
-                    </div>
-                </div>
-            </div>
-
-            <div class="text-center">
-                <button id="downloadBtn" class="btn btn-primary btn-lg" disabled>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                        <polyline points="7 10 12 15 17 10"></polyline>
-                        <line x1="12" y1="15" x2="12" y2="3"></line>
-                    </svg>
-                    Download Word Report
-                </button>
-            </div>
-
-            <div id="status" class="status-message mt-3"></div>
         </main>
 
         <footer class="text-center mt-5 text-muted">
