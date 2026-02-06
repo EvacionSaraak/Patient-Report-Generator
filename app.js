@@ -638,6 +638,16 @@ function createDocumentContent(data, lib) {
                     spacing: { after: 100 }
                 })
             );
+            
+            // Add page break after every 5 patient records
+            if ((index + 1) % 5 === 0 && index + 1 < rows.length) {
+                children.push(
+                    new docxLib.Paragraph({
+                        text: '',
+                        pageBreakBefore: true
+                    })
+                );
+            }
         });
     } else {
         children.push(
