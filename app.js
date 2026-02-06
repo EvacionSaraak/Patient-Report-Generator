@@ -628,7 +628,13 @@ function createDocumentContent(data, lib) {
                             color: '000000'  // Black text
                         }),
                         new docxLib.TextRun({
-                            text: `: ${remarks}`,
+                            text: ': ',
+                            font: 'Calibri',
+                            size: 24,  // 12pt
+                            color: '000000'  // Black text
+                        }),
+                        new docxLib.TextRun({
+                            text: remarks,
                             font: 'Calibri',
                             size: 24,  // 12pt
                             color: '000000',  // Black text
