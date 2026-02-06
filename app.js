@@ -187,11 +187,14 @@ function generateWordPreview(data) {
         html += `<p class="mb-1 ms-2"><strong>Patient Name:</strong> ${escapeHtml(patientName)}</p>`;
         html += `<p class="mb-1 ms-2"><strong>Doctor Name:</strong> ${escapeHtml(doctor)}</p>`;
         
-        // Add yellow highlight to "Patient with new OPG" remarks
-        if (remarks === 'Patient with new OPG') {
-            html += `<p class="mb-1 ms-2"><strong>Remarks:</strong> <span style="background-color: yellow;">${escapeHtml(remarks)}</span></p>`;
-        } else {
-            html += `<p class="mb-1 ms-2"><strong>Remarks:</strong> ${escapeHtml(remarks)}</p>`;
+        // Only add remarks line if remarks is not blank (excluding whitespace-only strings)
+        if (remarks && remarks.trim()) {
+            // Add yellow highlight to "Patient with new OPG" remarks
+            if (remarks === 'Patient with new OPG') {
+                html += `<p class="mb-1 ms-2"><strong>Remarks:</strong> <span style="background-color: yellow;">${escapeHtml(remarks)}</span></p>`;
+            } else {
+                html += `<p class="mb-1 ms-2"><strong>Remarks:</strong> ${escapeHtml(remarks)}</p>`;
+            }
         }
         
         html += `</div>`;
@@ -616,34 +619,37 @@ function createDocumentContent(data, lib) {
                 })
             );
             
-            // Remarks: [remarks]
-            children.push(
-                new docxLib.Paragraph({
-                    children: [
-                        new docxLib.TextRun({
-                            text: ' Remarks',
-                            bold: true,
-                            font: 'Calibri',
-                            size: 24,  // 12pt
-                            color: '000000'  // Black text
-                        }),
-                        new docxLib.TextRun({
-                            text: ': ',
-                            font: 'Calibri',
-                            size: 24,  // 12pt
-                            color: '000000'  // Black text
-                        }),
-                        new docxLib.TextRun({
-                            text: remarks,
-                            font: 'Calibri',
-                            size: 24,  // 12pt
-                            color: '000000',  // Black text
-                            highlight: remarks === 'Patient with new OPG' ? 'yellow' : undefined  // Yellow highlight for OPG remarks
-                        })
-                    ],
-                    spacing: { after: 100 }
-                })
-            );
+            // Only add remarks line if remarks is not blank (excluding whitespace-only strings)
+            if (remarks && remarks.trim()) {
+                // Remarks: [remarks]
+                children.push(
+                    new docxLib.Paragraph({
+                        children: [
+                            new docxLib.TextRun({
+                                text: ' Remarks',
+                                bold: true,
+                                font: 'Calibri',
+                                size: 24,  // 12pt
+                                color: '000000'  // Black text
+                            }),
+                            new docxLib.TextRun({
+                                text: ': ',
+                                font: 'Calibri',
+                                size: 24,  // 12pt
+                                color: '000000'  // Black text
+                            }),
+                            new docxLib.TextRun({
+                                text: remarks,
+                                font: 'Calibri',
+                                size: 24,  // 12pt
+                                color: '000000',  // Black text
+                                highlight: remarks === 'Patient with new OPG' ? 'yellow' : undefined  // Yellow highlight for OPG remarks
+                            })
+                        ],
+                        spacing: { after: 100 }
+                    })
+                );
+            }
             
             // Add page break after every 5 patient records
             if ((index + 1) % 5 === 0 && index + 1 < rows.length) {
