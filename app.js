@@ -187,8 +187,8 @@ function generateWordPreview(data) {
         html += `<p class="mb-1 ms-2"><strong>Patient Name:</strong> ${escapeHtml(patientName)}</p>`;
         html += `<p class="mb-1 ms-2"><strong>Doctor Name:</strong> ${escapeHtml(doctor)}</p>`;
         
-        // Only add remarks line if remarks is not blank
-        if (remarks) {
+        // Only add remarks line if remarks is not blank (excluding whitespace-only strings)
+        if (remarks && remarks.trim()) {
             // Add yellow highlight to "Patient with new OPG" remarks
             if (remarks === 'Patient with new OPG') {
                 html += `<p class="mb-1 ms-2"><strong>Remarks:</strong> <span style="background-color: yellow;">${escapeHtml(remarks)}</span></p>`;
@@ -619,8 +619,8 @@ function createDocumentContent(data, lib) {
                 })
             );
             
-            // Only add remarks line if remarks is not blank
-            if (remarks) {
+            // Only add remarks line if remarks is not blank (excluding whitespace-only strings)
+            if (remarks && remarks.trim()) {
                 // Remarks: [remarks]
                 children.push(
                     new docxLib.Paragraph({
