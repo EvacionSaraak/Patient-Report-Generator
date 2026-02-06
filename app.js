@@ -145,6 +145,18 @@ async function generateWordDocument() {
     }
 }
 
+// Helper function to generate remarks from Personal Reminders field
+function getRemarks(personalReminders) {
+    if (!personalReminders) {
+        return '';
+    }
+    const remindersStr = String(personalReminders).toUpperCase();
+    if (remindersStr.includes('OPG')) {
+        return 'Patient with new OPG';
+    }
+    return '';
+}
+
 // Create document content
 function createDocumentContent(data) {
     const children = [];
@@ -152,7 +164,7 @@ function createDocumentContent(data) {
     // Add title
     children.push(
         new docx.Paragraph({
-            text: 'Patient Report',
+            text: 'Patient Reports',
             heading: docx.HeadingLevel.HEADING_1,
             spacing: {
                 after: 300
@@ -170,56 +182,67 @@ function createDocumentContent(data) {
         })
     );
 
-    // Create table if data exists
+    // Process data if exists
     if (data.length > 0) {
         const headers = data[0] || [];
         const rows = data.slice(1);
 
-        // Create table rows
-        const tableRows = [];
+        // Find column indices
+        const ptNoIndex = headers.findIndex(h => String(h).toLowerCase().includes('pt no'));
+        const patientNameIndex = headers.findIndex(h => String(h).toLowerCase().includes('patient name'));
+        const visitDateIndex = headers.findIndex(h => String(h).toLowerCase().includes('visit date'));
+        const doctorIndex = headers.findIndex(h => String(h).toLowerCase().includes('doctor'));
+        const personalRemindersIndex = headers.findIndex(h => String(h).toLowerCase().includes('personal reminders'));
 
-        // Header row
-        tableRows.push(
-            new docx.TableRow({
-                children: headers.map(header => 
-                    new docx.TableCell({
-                        children: [new docx.Paragraph({
-                            text: String(header || ''),
-                            bold: true
-                        })],
-                        shading: {
-                            fill: 'CCCCCC'
+        // Process each patient record
+        rows.forEach((row, index) => {
+            if (index > 0) {
+                // Add separator line between records
+                children.push(
+                    new docx.Paragraph({
+                        text: '_____________________',
+                        spacing: {
+                            before: 200,
+                            after: 200
                         }
                     })
-                )
-            })
-        );
+                );
+            }
 
-        // Data rows
-        rows.forEach(row => {
-            tableRows.push(
-                new docx.TableRow({
-                    children: headers.map((_, index) => 
-                        new docx.TableCell({
-                            children: [new docx.Paragraph({
-                                text: String(row[index] !== undefined ? row[index] : '')
-                            })]
-                        })
-                    )
+            // Extract data from row
+            const ptNo = row[ptNoIndex] !== undefined ? String(row[ptNoIndex]) : '';
+            const patientName = row[patientNameIndex] !== undefined ? String(row[patientNameIndex]) : '';
+            const visitDate = row[visitDateIndex] !== undefined ? String(row[visitDateIndex]) : '';
+            const doctor = row[doctorIndex] !== undefined ? String(row[doctorIndex]) : '';
+            const personalReminders = row[personalRemindersIndex] !== undefined ? row[personalRemindersIndex] : '';
+
+            // Determine remarks
+            const remarks = getRemarks(personalReminders);
+
+            // Add formatted patient record
+            children.push(
+                new docx.Paragraph({
+                    text: `Date: ${visitDate}`,
+                    spacing: { after: 100 }
+                }),
+                new docx.Paragraph({
+                    text: ` File Number: ${ptNo}`,
+                    spacing: { after: 100 }
+                }),
+                new docx.Paragraph({
+                    text: ` Patient Name: ${patientName}`,
+                    spacing: { after: 100 }
+                }),
+                new docx.Paragraph({
+                    text: ` Doctor Name: ${doctor}`,
+                    spacing: { after: 100 }
+                }),
+                new docx.Paragraph({
+                    text: ` Remarks: ${remarks}`,
+                    spacing: { after: 100 }
                 })
             );
         });
-
-        // Add table to document
-        children.push(
-            new docx.Table({
-                rows: tableRows,
-                width: {
-                    size: 100,
-                    type: docx.WidthType.PERCENTAGE
-                }
-            })
-        );
     } else {
         children.push(
             new docx.Paragraph({
