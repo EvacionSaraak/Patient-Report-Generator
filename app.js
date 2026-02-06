@@ -17,16 +17,20 @@ const refreshPreviewBtn = document.getElementById('refreshPreviewBtn');
 
 // Wait for libraries to load
 window.addEventListener('load', function() {
-    // Check if docx library is loaded
-    if (typeof docx !== 'undefined') {
-        docxLib = docx;
-        console.log('docx library loaded successfully');
-    } else if (window.docx) {
-        docxLib = window.docx;
-        console.log('docx library loaded from window');
-    } else {
-        console.error('docx library not found');
-    }
+    // Wait a bit for external scripts to fully initialize
+    setTimeout(function() {
+        // Check if docx library is loaded
+        if (typeof docx !== 'undefined') {
+            docxLib = docx;
+            console.log('docx library loaded successfully');
+        } else if (window.docx) {
+            docxLib = window.docx;
+            console.log('docx library loaded from window');
+        } else {
+            console.error('docx library not found - check CDN connection');
+            showStatus('Warning: Document library not loaded. Refresh the page if download fails.', 'error');
+        }
+    }, 100);
 });
 
 // Event listeners
@@ -206,8 +210,15 @@ async function generateWordDocument() {
         showStatus('Generating Word document...', 'info');
         downloadBtn.disabled = true;
 
-        // Check if docx library is available
-        const lib = docxLib || window.docx || docx;
+        // Check if docx library is available with multiple fallback attempts
+        let lib = docxLib || window.docx;
+        
+        // Try accessing it directly as a last resort
+        if (!lib && typeof docx !== 'undefined') {
+            lib = docx;
+            docxLib = docx; // Cache it for future use
+        }
+        
         if (!lib) {
             throw new Error('docx library is not loaded. Please refresh the page and try again.');
         }
