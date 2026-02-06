@@ -1,0 +1,300 @@
+/* Clean Clinical Aesthetic */
+
+body {
+    background: #f5f7fa;
+    min-height: 100vh;
+    padding: 0;
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif;
+}
+
+.container-fluid {
+    background: white;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    max-width: 100%;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+}
+
+header {
+    background: #ffffff;
+    color: #2c3e50;
+    padding: 30px;
+    border-bottom: 2px solid #3498db;
+    margin: 0;
+}
+
+header h1 {
+    color: #2c3e50;
+    font-weight: 600;
+    font-size: 1.75rem;
+}
+
+header .lead {
+    color: #5a6c7d;
+    font-size: 1rem;
+}
+
+.file-input-wrapper {
+    position: relative;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.file-input {
+    display: none;
+}
+
+.file-label {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 30px;
+    border: 2px dashed #cbd5e0;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: #f8f9fa;
+    width: 100%;
+}
+
+.file-label:hover {
+    background: #e9ecef;
+    border-color: #3498db;
+}
+
+.file-label svg {
+    color: #3498db;
+    margin-bottom: 12px;
+}
+
+.label-text {
+    font-size: 0.95rem;
+    color: #3498db;
+    font-weight: 500;
+}
+
+.file-name {
+    color: #5a6c7d;
+    font-size: 0.9rem;
+    min-height: 20px;
+}
+
+.card {
+    border: 1px solid #e1e8ed;
+    border-radius: 4px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+/* Add visual separation between columns */
+.col-lg-6:first-child {
+    border-right: 1px solid #e1e8ed;
+}
+
+/* Ensure columns stretch to edges */
+.row.g-0 {
+    margin: 0;
+}
+
+.row.g-0 > [class*='col-'] {
+    padding-left: 15px;
+    padding-right: 15px;
+}
+
+.card-header {
+    background: #f8f9fa;
+    border-bottom: 1px solid #e1e8ed;
+    padding: 12px 16px;
+}
+
+.card-header h2 {
+    color: #2c3e50;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.data-preview {
+    max-height: 400px;
+    overflow: auto;
+    background: white;
+    font-size: 0.875rem;
+}
+
+.data-preview table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.data-preview th,
+.data-preview td {
+    padding: 8px 12px;
+    text-align: left;
+    border-bottom: 1px solid #e1e8ed;
+}
+
+.data-preview th {
+    background: #f8f9fa;
+    font-weight: 600;
+    color: #2c3e50;
+    position: sticky;
+    top: 0;
+    font-size: 0.875rem;
+}
+
+.data-preview tr:hover {
+    background: #f8f9fa;
+}
+
+/* Word Preview Styles */
+.sticky-preview {
+    position: sticky;
+    top: 20px;
+    max-height: calc(100vh - 40px);
+    overflow: hidden;
+}
+
+.sticky-preview .card-body {
+    max-height: calc(100vh - 180px);
+    overflow-y: auto;
+}
+
+.word-preview {
+    max-height: 500px;
+    overflow-y: auto;
+    background: #ffffff;
+    font-family: 'Calibri', 'Arial', sans-serif;
+    line-height: 1.6;
+    min-height: 300px;
+    color: #2c3e50;
+}
+
+.word-preview:focus {
+    outline: 2px solid #3498db;
+    outline-offset: 2px;
+}
+
+.word-preview h3 {
+    color: #2c3e50;
+    margin-bottom: 1rem;
+    font-weight: 600;
+    font-size: 1.25rem;
+}
+
+.word-preview .patient-record {
+    padding: 0.5rem 0;
+}
+
+.word-preview hr {
+    margin: 1.5rem 0;
+    border-color: #e1e8ed;
+}
+
+.word-preview p {
+    margin-bottom: 0.25rem;
+    color: #2c3e50;
+}
+
+.word-preview .ms-2 {
+    padding-left: 0.5rem;
+}
+
+.word-preview strong {
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+/* Clean Clinical Buttons */
+.btn-primary {
+    background: #3498db;
+    border: 1px solid #3498db;
+    color: white;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    box-shadow: none;
+}
+
+.btn-primary:hover:not(:disabled) {
+    background: #2980b9;
+    border-color: #2980b9;
+    transform: none;
+    box-shadow: 0 2px 4px rgba(52, 152, 219, 0.2);
+}
+
+.btn-primary:disabled {
+    background: #cbd5e0;
+    border-color: #cbd5e0;
+    cursor: not-allowed;
+}
+
+.btn-outline-primary {
+    color: #3498db;
+    border-color: #3498db;
+    background: transparent;
+}
+
+.btn-outline-primary:hover {
+    color: white;
+    background: #3498db;
+    border-color: #3498db;
+}
+
+.alert-info {
+    background: #e8f4f8;
+    border-color: #bee5eb;
+    color: #31708f;
+}
+
+.status-message {
+    text-align: center;
+    padding: 12px;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    min-height: 20px;
+}
+
+.status-message.success {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.status-message.error {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.status-message.info {
+    background: #d1ecf1;
+    color: #0c5460;
+    border: 1px solid #bee5eb;
+}
+
+footer {
+    color: #8898aa;
+    font-size: 0.875rem;
+}
+
+/* Responsive design */
+@media (max-width: 992px) {
+    .sticky-preview {
+        position: relative;
+        top: 0;
+        max-height: none;
+    }
+    
+    .sticky-preview .card-body {
+        max-height: 500px;
+    }
+}
+
+@media (max-width: 768px) {
+    header h1 {
+        font-size: 1.5rem;
+    }
+
+    .file-label {
+        padding: 25px 15px;
+    }
+}
