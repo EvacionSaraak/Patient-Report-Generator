@@ -186,7 +186,14 @@ function generateWordPreview(data) {
         html += `<p class="mb-1 ms-2"><strong>File Number:</strong> ${escapeHtml(ptNo)}</p>`;
         html += `<p class="mb-1 ms-2"><strong>Patient Name:</strong> ${escapeHtml(patientName)}</p>`;
         html += `<p class="mb-1 ms-2"><strong>Doctor Name:</strong> ${escapeHtml(doctor)}</p>`;
-        html += `<p class="mb-1 ms-2"><strong>Remarks:</strong> ${escapeHtml(remarks)}</p>`;
+        
+        // Add yellow highlight to "Patient with new OPG" remarks
+        if (remarks === 'Patient with new OPG') {
+            html += `<p class="mb-1 ms-2"><strong>Remarks:</strong> <span style="background-color: yellow;">${escapeHtml(remarks)}</span></p>`;
+        } else {
+            html += `<p class="mb-1 ms-2"><strong>Remarks:</strong> ${escapeHtml(remarks)}</p>`;
+        }
+        
         html += `</div>`;
     });
 
@@ -624,7 +631,8 @@ function createDocumentContent(data, lib) {
                             text: `: ${remarks}`,
                             font: 'Calibri',
                             size: 24,  // 12pt
-                            color: '000000'  // Black text
+                            color: '000000',  // Black text
+                            highlight: remarks === 'Patient with new OPG' ? 'yellow' : undefined  // Yellow highlight for OPG remarks
                         })
                     ],
                     spacing: { after: 100 }
