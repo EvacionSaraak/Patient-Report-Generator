@@ -229,8 +229,9 @@ async function generateWordDocument() {
             throw new Error('docx library is not loaded. Please refresh the page and try again.');
         }
 
-        // Get edited content from preview or use original data
-        const contentToUse = getEditedContent(lib);
+        // Always use createDocumentContent to preserve formatting
+        // Don't use getEditedContent which strips formatting
+        const contentToUse = createDocumentContent(parsedData, lib);
 
         // Create a new document using docx
         const doc = new lib.Document({
@@ -240,9 +241,18 @@ async function generateWordDocument() {
             }]
         });
 
+        // Generate dynamic filename based on date range
+        const dateRange = getDateRange(parsedData);
+        let filename = 'PATIENT REPORT _ DATED ';
+        if (dateRange.min && dateRange.max) {
+            filename += `${dateRange.min} - ${dateRange.max}.docx`;
+        } else {
+            filename += 'Unknown.docx';
+        }
+
         // Generate and download the document
         const blob = await lib.Packer.toBlob(doc);
-        saveAs(blob, 'patient-report.docx');
+        saveAs(blob, filename);
         
         showStatus('Word document generated successfully!', 'success');
         downloadBtn.disabled = false;
