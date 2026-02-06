@@ -4,17 +4,21 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Patient Report Generator</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Custom styles -->
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>Patient Report Generator</h1>
-            <p class="subtitle">Upload an XLSX file to generate a Word document report</p>
+    <div class="container py-4">
+        <header class="text-center mb-4">
+            <h1 class="display-4">Patient Report Generator</h1>
+            <p class="lead">Upload an XLSX file to generate a Word document report</p>
         </header>
 
         <main>
-            <div class="upload-section">
+            <div class="upload-section mb-4">
                 <div class="file-input-wrapper">
                     <input type="file" id="fileInput" accept=".xlsx, .xls" class="file-input">
                     <label for="fileInput" class="file-label">
@@ -26,17 +30,37 @@
                         <span class="label-text">Choose XLSX File</span>
                     </label>
                 </div>
-                <p id="fileName" class="file-name"></p>
+                <p id="fileName" class="file-name text-center mt-2"></p>
             </div>
 
-            <div id="previewSection" class="preview-section" style="display: none;">
-                <h2>Preview</h2>
-                <div id="dataPreview" class="data-preview"></div>
+            <div id="previewSection" class="preview-section card mb-4" style="display: none;">
+                <div class="card-header">
+                    <h2 class="h5 mb-0">Data Preview</h2>
+                </div>
+                <div class="card-body">
+                    <div id="dataPreview" class="data-preview"></div>
+                </div>
             </div>
 
-            <div class="button-section">
-                <button id="downloadBtn" class="download-btn" disabled>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <!-- Editable Word Document Preview -->
+            <div id="wordPreviewSection" class="word-preview-section card mb-4" style="display: none;">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h2 class="h5 mb-0">Word Document Preview (Editable)</h2>
+                    <button id="refreshPreviewBtn" class="btn btn-sm btn-outline-primary">Refresh Preview</button>
+                </div>
+                <div class="card-body">
+                    <div id="wordPreview" class="word-preview border rounded p-3" contenteditable="true">
+                        <!-- Preview content will be inserted here -->
+                    </div>
+                    <div class="alert alert-info mt-3 mb-0">
+                        <small><strong>Tip:</strong> You can edit the content above before downloading. Changes will be included in the final document.</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-center">
+                <button id="downloadBtn" class="btn btn-primary btn-lg" disabled>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2">
                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                         <polyline points="7 10 12 15 17 10"></polyline>
                         <line x1="12" y1="15" x2="12" y2="3"></line>
@@ -45,17 +69,20 @@
                 </button>
             </div>
 
-            <div id="status" class="status-message"></div>
+            <div id="status" class="status-message mt-3"></div>
         </main>
 
-        <footer>
+        <footer class="text-center mt-5 text-muted">
             <p>A tool to automate generation of patient reports</p>
         </footer>
     </div>
 
+    <!-- Bootstrap JS (optional, for interactive components) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
     <!-- Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.js"></script>
+    <script src="https://unpkg.com/docx@8.5.0/build/index.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
     
     <!-- Application Script -->

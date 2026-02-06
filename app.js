@@ -1,6 +1,7 @@
 // Global variables
 let workbookData = null;
 let parsedData = null;
+let previewContent = null; // Store preview content for editing
 
 // DOM elements
 const fileInput = document.getElementById('fileInput');
@@ -9,10 +10,14 @@ const downloadBtn = document.getElementById('downloadBtn');
 const statusDiv = document.getElementById('status');
 const previewSection = document.getElementById('previewSection');
 const dataPreview = document.getElementById('dataPreview');
+const wordPreviewSection = document.getElementById('wordPreviewSection');
+const wordPreview = document.getElementById('wordPreview');
+const refreshPreviewBtn = document.getElementById('refreshPreviewBtn');
 
 // Event listeners
 fileInput.addEventListener('change', handleFileSelect);
 downloadBtn.addEventListener('click', generateWordDocument);
+refreshPreviewBtn.addEventListener('click', refreshWordPreview);
 
 // Handle file selection
 function handleFileSelect(event) {
@@ -70,6 +75,9 @@ function parseWorkbook(workbook) {
         
         // Display preview
         displayPreview(parsedData);
+        
+        // Generate and display Word preview
+        generateWordPreview(parsedData);
     } catch (error) {
         showStatus('Error parsing workbook: ' + error.message, 'error');
     }
@@ -114,6 +122,64 @@ function displayPreview(data) {
     previewSection.style.display = 'block';
 }
 
+// Generate Word document preview
+function generateWordPreview(data) {
+    if (!data || data.length === 0) {
+        wordPreview.innerHTML = '<p class="text-muted">No data to preview.</p>';
+        wordPreviewSection.style.display = 'block';
+        return;
+    }
+
+    const headers = data[0] || [];
+    const rows = data.slice(1);
+
+    // Find column indices
+    const ptNoIndex = headers.findIndex(h => String(h).toLowerCase().includes('pt no'));
+    const patientNameIndex = headers.findIndex(h => String(h).toLowerCase().includes('patient name'));
+    const visitDateIndex = headers.findIndex(h => String(h).toLowerCase().includes('visit date'));
+    const doctorIndex = headers.findIndex(h => String(h).toLowerCase().includes('doctor'));
+    const personalRemindersIndex = headers.findIndex(h => String(h).toLowerCase().includes('personal reminders'));
+
+    // Build HTML preview
+    let html = '<div class="document-preview">';
+    html += '<h3 class="mb-3">Patient Reports</h3>';
+    html += `<p class="text-muted mb-4">Generated on: ${new Date().toLocaleString()}</p>`;
+
+    rows.forEach((row, index) => {
+        if (index > 0) {
+            html += '<hr class="my-4">';
+        }
+
+        const ptNo = row[ptNoIndex] !== undefined ? String(row[ptNoIndex]) : '';
+        const patientName = row[patientNameIndex] !== undefined ? String(row[patientNameIndex]) : '';
+        const visitDate = row[visitDateIndex] !== undefined ? String(row[visitDateIndex]) : '';
+        const doctor = row[doctorIndex] !== undefined ? String(row[doctorIndex]) : '';
+        const personalReminders = row[personalRemindersIndex] !== undefined ? row[personalRemindersIndex] : '';
+        const remarks = getRemarks(personalReminders);
+
+        html += `<div class="patient-record mb-3">`;
+        html += `<p class="mb-1"><strong>Date:</strong> ${escapeHtml(visitDate)}</p>`;
+        html += `<p class="mb-1 ms-2"><strong>File Number:</strong> ${escapeHtml(ptNo)}</p>`;
+        html += `<p class="mb-1 ms-2"><strong>Patient Name:</strong> ${escapeHtml(patientName)}</p>`;
+        html += `<p class="mb-1 ms-2"><strong>Doctor Name:</strong> ${escapeHtml(doctor)}</p>`;
+        html += `<p class="mb-1 ms-2"><strong>Remarks:</strong> ${escapeHtml(remarks)}</p>`;
+        html += `</div>`;
+    });
+
+    html += '</div>';
+    
+    wordPreview.innerHTML = html;
+    wordPreviewSection.style.display = 'block';
+}
+
+// Refresh Word preview from current data
+function refreshWordPreview() {
+    if (parsedData) {
+        generateWordPreview(parsedData);
+        showStatus('Preview refreshed!', 'success');
+    }
+}
+
 // Generate Word document
 async function generateWordDocument() {
     if (!parsedData || parsedData.length === 0) {
@@ -125,11 +191,24 @@ async function generateWordDocument() {
         showStatus('Generating Word document...', 'info');
         downloadBtn.disabled = true;
 
+        // Wait for docx library to be available
+        if (typeof docx === 'undefined') {
+            // Try to access from window
+            if (window.docx) {
+                window.docx = window.docx;
+            } else {
+                throw new Error('docx library is not loaded. Please refresh the page.');
+            }
+        }
+
+        // Get edited content from preview or use original data
+        const contentToUse = getEditedContent();
+
         // Create a new document using docx
         const doc = new docx.Document({
             sections: [{
                 properties: {},
-                children: createDocumentContent(parsedData)
+                children: contentToUse
             }]
         });
 
@@ -141,8 +220,60 @@ async function generateWordDocument() {
         downloadBtn.disabled = false;
     } catch (error) {
         showStatus('Error generating document: ' + error.message, 'error');
+        console.error('Error details:', error);
         downloadBtn.disabled = false;
     }
+}
+
+// Get edited content from preview or generate from data
+function getEditedContent() {
+    // Parse the edited HTML preview to extract text
+    const previewDiv = wordPreview;
+    const paragraphs = [];
+
+    if (previewDiv.textContent.trim()) {
+        // Extract text from the editable preview
+        const lines = previewDiv.innerText.split('\n').filter(line => line.trim());
+        
+        lines.forEach((line, index) => {
+            const trimmedLine = line.trim();
+            if (!trimmedLine) return;
+
+            // Check if it's a title
+            if (trimmedLine === 'Patient Reports') {
+                paragraphs.push(
+                    new docx.Paragraph({
+                        text: trimmedLine,
+                        heading: docx.HeadingLevel.HEADING_1,
+                        spacing: { after: 300 }
+                    })
+                );
+            }
+            // Check if it's a separator
+            else if (trimmedLine.includes('___') || trimmedLine === '---') {
+                paragraphs.push(
+                    new docx.Paragraph({
+                        text: '_____________________',
+                        spacing: { before: 200, after: 200 }
+                    })
+                );
+            }
+            // Regular content
+            else {
+                paragraphs.push(
+                    new docx.Paragraph({
+                        text: trimmedLine,
+                        spacing: { after: 100 }
+                    })
+                );
+            }
+        });
+    } else {
+        // Fallback to original data
+        return createDocumentContent(parsedData);
+    }
+
+    return paragraphs.length > 0 ? paragraphs : createDocumentContent(parsedData);
 }
 
 // Helper function to generate remarks from Personal Reminders field
