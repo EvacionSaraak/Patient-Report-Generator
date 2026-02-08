@@ -693,6 +693,7 @@ function escapeHtml(text) {
 function filterEmptyRows(rows) {
     return rows.filter(row => {
         // A row is empty if all cells are null, undefined, empty, or whitespace-only
+        // Using != null to check for both null and undefined (nullish coalescing)
         return row && row.some(cell => cell != null && String(cell).trim() !== '');
     });
 }
