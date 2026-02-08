@@ -692,11 +692,7 @@ function escapeHtml(text) {
 // Filter out empty rows from data
 function filterEmptyRows(rows) {
     return rows.filter(row => {
-        // A row is empty if all cells are undefined, null, empty, or whitespace-only
-        return row && row.some(cell => {
-            if (cell === undefined || cell === null) return false;
-            const strValue = String(cell).trim();
-            return strValue !== '';
-        });
+        // A row is empty if all cells are null, undefined, empty, or whitespace-only
+        return row && row.some(cell => cell != null && String(cell).trim() !== '');
     });
 }
