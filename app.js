@@ -150,7 +150,7 @@ function generateWordPreview(data) {
     }
 
     const headers = data[0] || [];
-    const rows = data.slice(1);
+    const rows = filterEmptyRows(data.slice(1));
 
     // Find column indices
     const ptNoIndex = headers.findIndex(h => String(h).toLowerCase().includes('pt no'));
@@ -488,7 +488,7 @@ function createDocumentContent(data, lib) {
     // Process data if exists
     if (data.length > 0) {
         const headers = data[0] || [];
-        const rows = data.slice(1);
+        const rows = filterEmptyRows(data.slice(1));
 
         // Find column indices
         const ptNoIndex = headers.findIndex(h => String(h).toLowerCase().includes('pt no'));
@@ -687,4 +687,13 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+// Filter out empty rows from data
+function filterEmptyRows(rows) {
+    return rows.filter(row => {
+        // A row is empty if all cells are null, undefined, empty, or whitespace-only
+        // Using != null to check for both null and undefined (nullish coalescing)
+        return row && row.some(cell => cell != null && String(cell).trim() !== '');
+    });
 }
