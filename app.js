@@ -150,7 +150,10 @@ function generateWordPreview(data) {
     }
 
     const headers = data[0] || [];
-    const rows = data.slice(1);
+    const rows = data.slice(1).filter(row => {
+        // Filter out empty rows (rows where all values are undefined, null, or empty)
+        return row && row.some(cell => cell !== undefined && cell !== null && cell !== '');
+    });
 
     // Find column indices
     const ptNoIndex = headers.findIndex(h => String(h).toLowerCase().includes('pt no'));
@@ -488,7 +491,10 @@ function createDocumentContent(data, lib) {
     // Process data if exists
     if (data.length > 0) {
         const headers = data[0] || [];
-        const rows = data.slice(1);
+        const rows = data.slice(1).filter(row => {
+            // Filter out empty rows (rows where all values are undefined, null, or empty)
+            return row && row.some(cell => cell !== undefined && cell !== null && cell !== '');
+        });
 
         // Find column indices
         const ptNoIndex = headers.findIndex(h => String(h).toLowerCase().includes('pt no'));
