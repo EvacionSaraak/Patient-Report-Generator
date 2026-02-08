@@ -150,10 +150,7 @@ function generateWordPreview(data) {
     }
 
     const headers = data[0] || [];
-    const rows = data.slice(1).filter(row => {
-        // Filter out empty rows (rows where all values are undefined, null, or empty)
-        return row && row.some(cell => cell !== undefined && cell !== null && cell !== '');
-    });
+    const rows = filterEmptyRows(data.slice(1));
 
     // Find column indices
     const ptNoIndex = headers.findIndex(h => String(h).toLowerCase().includes('pt no'));
@@ -491,10 +488,7 @@ function createDocumentContent(data, lib) {
     // Process data if exists
     if (data.length > 0) {
         const headers = data[0] || [];
-        const rows = data.slice(1).filter(row => {
-            // Filter out empty rows (rows where all values are undefined, null, or empty)
-            return row && row.some(cell => cell !== undefined && cell !== null && cell !== '');
-        });
+        const rows = filterEmptyRows(data.slice(1));
 
         // Find column indices
         const ptNoIndex = headers.findIndex(h => String(h).toLowerCase().includes('pt no'));
@@ -693,4 +687,16 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+// Filter out empty rows from data
+function filterEmptyRows(rows) {
+    return rows.filter(row => {
+        // A row is empty if all cells are undefined, null, empty, or whitespace-only
+        return row && row.some(cell => {
+            if (cell === undefined || cell === null) return false;
+            const strValue = String(cell).trim();
+            return strValue !== '';
+        });
+    });
 }
