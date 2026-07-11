@@ -1,246 +1,990 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Patient Report Generator</title>
-    <link rel="icon" type="image/svg+xml" href="assets/icons/favicon.svg">
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Custom styles -->
-    <link rel="stylesheet" href="css/styles.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Patient Report Generator</title>
+<link rel="icon" type="image/svg+xml" href="assets/icons/favicon.svg">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css">
+
+<style>
+:root{--app-navbar-height:56px}
+
+#exampleSection.opg-page{
+height:calc(100vh - var(--app-navbar-height));
+height:calc(100dvh - var(--app-navbar-height));
+min-height:0;
+flex-direction:column;
+overflow:hidden
+}
+
+#exampleSection>header{
+flex:0 0 auto;
+padding:14px 24px 4px
+}
+
+#exampleSection>header h1{
+font-size:2.35rem
+}
+
+#exampleSection .opg-main{
+flex:1 1 auto;
+min-height:0;
+display:flex;
+flex-direction:column;
+overflow:hidden
+}
+
+#exampleSection .opg-workspace{
+flex:1 1 auto;
+min-height:0;
+overflow:hidden
+}
+
+#exampleSection .opg-column{
+height:100%;
+min-height:0;
+display:flex;
+flex-direction:column;
+overflow:hidden
+}
+
+#exampleSection .opg-upload{
+flex:0 0 auto;
+margin-bottom:10px
+}
+
+#exampleSection .opg-upload .file-label{
+padding:12px
+}
+
+#exampleSection .opg-upload .file-label svg{
+width:38px;
+height:38px;
+margin-bottom:4px
+}
+
+#exampleSection .opg-warning{
+flex:0 0 auto;
+max-height:180px;
+overflow:auto;
+margin-bottom:10px
+}
+
+#exampleSection .opg-card{
+flex:1 1 auto;
+min-height:0;
+display:flex;
+flex-direction:column;
+overflow:hidden;
+margin:0
+}
+
+#exampleSection .opg-card .card-body{
+flex:1 1 auto;
+min-height:0;
+display:flex;
+flex-direction:column;
+overflow:hidden
+}
+
+#exampleSection .opg-scroll{
+flex:1 1 auto;
+min-height:0;
+max-height:none;
+overflow:auto
+}
+
+#exampleSection .opg-actions{
+flex:0 0 auto;
+padding:9px 16px 11px;
+text-align:center;
+background:#fff;
+border-top:1px solid #e1e8ed
+}
+
+#exampleStatus:empty{
+display:none
+}
+
+.status-message.warning{
+color:#856404
+}
+
+.opg-preview-record{
+margin-bottom:24px;
+font-family:Arial,sans-serif
+}
+
+.opg-info-table{
+width:100%;
+table-layout:fixed;
+border-collapse:collapse;
+font-size:11pt;
+font-weight:700
+}
+
+.opg-info-table td{
+border:1px solid #000;
+padding:3px 6px;
+vertical-align:middle
+}
+
+.opg-reminder-line{
+height:22px;
+line-height:22px;
+font-size:11pt;
+font-weight:700
+}
+
+.opg-empty-image-area{
+width:100%;
+height:clamp(240px,39vh,390px);
+box-sizing:border-box;
+border:1px solid #000;
+background:#fff
+}
+
+@media(max-width:991.98px){
+
+#exampleSection .opg-workspace{
+display:block;
+overflow:auto
+}
+
+#exampleSection .opg-column{
+height:auto;
+min-height:520px;
+overflow:visible
+}
+
+#exampleSection .opg-card{
+min-height:410px
+}
+
+.opg-empty-image-area{
+height:300px
+}
+
+}
+</style>
 </head>
+
 <body>
 
-    <!-- ── Navbar ─────────────────────────────────────────────────────────── -->
-    <nav class="navbar navbar-expand-lg app-navbar">
-        <div class="container-fluid px-4">
-            <span class="navbar-brand">🏥 Patient Report Generator</span>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
-                    data-bs-target="#navbarContent" aria-controls="navbarContent"
-                    aria-expanded="false" aria-label="Toggle navigation">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarContent">
-                <ul class="navbar-nav ms-auto">
-                    <li class="nav-item">
-                        <a class="nav-link" href="#" id="navGenerator"
-                           onclick="showSection('generator'); return false;">Patient Report</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="#" id="navExample"
-                           onclick="showSection('example'); return false;">OPG Report</a>
-                    </li>
-                </ul>
-            </div>
-        </div>
-    </nav>
+<nav class="navbar navbar-expand-lg app-navbar">
 
-    <!-- ── Default (blank) landing ────────────────────────────────────────── -->
-    <div id="defaultSection" class="default-landing text-center">
-        <div>
-            <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24"
-                 fill="none" stroke="#cbd5e0" stroke-width="1.5" stroke-linecap="round"
-                 stroke-linejoin="round" class="mb-4">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                <polyline points="14 2 14 8 20 8"></polyline>
-                <line x1="16" y1="13" x2="8" y2="13"></line>
-                <line x1="16" y1="17" x2="8" y2="17"></line>
-                <polyline points="10 9 9 9 8 9"></polyline>
-            </svg>
-            <p class="text-muted">Select an option from the navigation bar above to get started.</p>
-        </div>
-    </div>
+<div class="container-fluid px-4">
 
-    <!-- ── Generator Section ──────────────────────────────────────────────── -->
-    <div id="generatorSection" class="container-fluid section-panel" style="display:none;">
-        <header class="text-center mb-0">
-            <h1 class="display-4">Report Generator</h1>
-            <p class="lead">Upload an XLSX file to generate Word or Text patient reports</p>
-        </header>
+<span class="navbar-brand">
+Patient Report Generator
+</span>
 
-        <main>
-            <div class="row g-0">
-                <!-- Left Column: Upload and Data Preview -->
-                <div class="col-lg-6 mb-4 px-3 py-3">
-                    <div class="upload-section mb-4">
-                        <div class="file-input-wrapper">
-                            <input type="file" id="fileInput" accept=".xlsx, .xls" class="file-input">
-                            <label for="fileInput" class="file-label">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                                    <polyline points="17 8 12 3 7 8"></polyline>
-                                    <line x1="12" y1="3" x2="12" y2="15"></line>
-                                </svg>
-                                <span class="label-text">Choose XLSX File</span>
-                            </label>
-                        </div>
-                        <p id="fileName" class="file-name text-center mt-2"></p>
-                    </div>
+<button
+class="navbar-toggler"
+type="button"
+data-bs-toggle="collapse"
+data-bs-target="#navbarContent"
+aria-controls="navbarContent"
+aria-expanded="false"
+aria-label="Toggle navigation"
+>
 
-                    <div id="previewSection" class="preview-section card mb-4" style="display: none;">
-                        <div class="card-header">
-                            <h2 class="h5 mb-0">XLSX Data Preview</h2>
-                        </div>
-                        <div class="card-body">
-                            <div id="dataPreview" class="data-preview"></div>
-                        </div>
-                    </div>
-                </div>
+<span class="navbar-toggler-icon"></span>
 
-                <!-- Right Column: Report Preview -->
-                <div class="col-lg-6 mb-4 px-3 py-3">
-                    <div id="reportPreviewSection" class="word-preview-section card sticky-preview" style="display: none;">
-                        <div class="card-header d-flex justify-content-between align-items-center">
-                            <h2 class="h5 mb-0">Report Preview</h2>
-                            <div class="d-flex align-items-center gap-2">
-                                <div class="btn-group btn-group-sm" role="group" aria-label="Report format tabs">
-                                    <button id="wordTabBtn" type="button" class="btn btn-outline-primary active">Word (.docx)</button>
-                                    <button id="textTabBtn" type="button" class="btn btn-outline-primary">Text (.txt)</button>
-                                </div>
-                                <button id="refreshPreviewBtn" class="btn btn-sm btn-outline-primary">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-clockwise" viewBox="0 0 16 16">
-                                        <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/>
-                                        <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/>
-                                    </svg>
-                                    Refresh
-                                </button>
-                            </div>
-                        </div>
-                        <div class="card-body">
-                            <div id="wordPreviewPanel">
-                                <div id="wordPreview" class="word-preview border rounded p-3" contenteditable="true">
-                                    <!-- Preview content will be inserted here -->
-                                </div>
-                                <div class="alert alert-info mt-3 mb-0">
-                                    <small><strong>💡 Tip:</strong> You can edit the content above before downloading. Changes will be included in the final Word document.</small>
-                                </div>
-                            </div>
-                            <div id="textPreviewPanel" style="display: none;">
-                                <pre id="textPreview" class="text-preview border rounded p-3 mb-0"></pre>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+</button>
 
-            <!-- Download Button Section (Full Width) -->
-            <div class="row">
-                <div class="col-12 text-center">
-                    <button id="downloadBtn" class="btn btn-primary btn-lg" disabled>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                            <polyline points="7 10 12 15 17 10"></polyline>
-                            <line x1="12" y1="15" x2="12" y2="3"></line>
-                        </svg>
-                        <span id="downloadBtnText">Download Word Report</span>
-                    </button>
-                    <div id="status" class="status-message mt-3"></div>
-                </div>
-            </div>
-        </main>
+<div
+class="collapse navbar-collapse"
+id="navbarContent"
+>
 
-        <footer class="text-center mt-5 text-muted">
-            <p>A tool to automate generation of patient reports</p>
-        </footer>
-    </div>
+<ul class="navbar-nav ms-auto">
 
-    <!-- ── OPG Report Section ──────────────────────────────────────────────── -->
-    <div id="exampleSection" class="container-fluid section-panel" style="display:none;">
-        <header class="text-center mb-0">
-            <h1 class="display-4">OPG Report</h1>
-            <p class="lead">Sample patient data and the OPG report it generates</p>
-        </header>
+<li class="nav-item">
 
-        <main>
-            <div class="row g-0">
-                <!-- Left Column: Example input data -->
-                <div class="col-lg-6 mb-4 px-3 py-3">
-                    <div class="card mb-4">
-                        <div class="card-header">
-                            <h2 class="h5 mb-0">Input Data</h2>
-                        </div>
-                        <div class="card-body">
-                            <div id="exampleDataPreview" class="data-preview"></div>
-                        </div>
-                    </div>
-                </div>
+<a
+class="nav-link"
+href="#"
+id="navGenerator"
+onclick="showSection('generator');return false;"
+>
+Patient Report
+</a>
 
-                <!-- Right Column: OPG report preview -->
-                <div class="col-lg-6 mb-4 px-3 py-3">
-                    <div class="word-preview-section card sticky-preview">
-                        <div class="card-header">
-                            <h2 class="h5 mb-0">OPG Report Preview</h2>
-                        </div>
-                        <div class="card-body">
-                            <div id="exampleOutputPreview" class="word-preview border rounded p-3"></div>
-                            <div class="alert alert-info mt-3 mb-0">
-                                <small><strong>💡 Tip:</strong> The download button below generates an OPG Report Word document from the input data shown on the left.</small>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+</li>
 
-            <!-- Download Button Section (Full Width) -->
-            <div class="row">
-                <div class="col-12 text-center">
-                    <button id="exampleDownloadBtn" class="btn btn-primary btn-lg">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                            <polyline points="7 10 12 15 17 10"></polyline>
-                            <line x1="12" y1="15" x2="12" y2="3"></line>
-                        </svg>
-                        <span id="exampleDownloadBtnText">Download OPG Report</span>
-                    </button>
-                    <div id="exampleStatus" class="status-message mt-3"></div>
-                </div>
-            </div>
-        </main>
-    </div>
+<li class="nav-item">
 
-    <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<a
+class="nav-link"
+href="#"
+id="navExample"
+onclick="showSection('example');return false;"
+>
+OPG Report
+</a>
 
-    <!-- Libraries -->
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.4/dist/pizzip.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3.49.0/build/docxtemplater.js"></script>
+</li>
 
-    <!-- Template data (base64-encoded .docx templates) -->
-    <script src="js/templates.js"></script>
+</ul>
 
-    <!-- Application Scripts -->
-    <script src="js/app.js"></script>
-    <script src="js/example.js"></script>
+</div>
 
-    <!-- Navigation logic -->
-    <script>
-        var exampleInitialised = false;
+</div>
 
-        function showSection(name) {
-            // Hide all sections
-            document.getElementById('defaultSection').style.display   = 'none';
-            document.getElementById('generatorSection').style.display = 'none';
-            document.getElementById('exampleSection').style.display   = 'none';
+</nav>
 
-            // Update active nav link
-            document.getElementById('navGenerator').classList.remove('active');
-            document.getElementById('navExample').classList.remove('active');
 
-            if (name === 'generator') {
-                document.getElementById('generatorSection').style.display = 'block';
-                document.getElementById('navGenerator').classList.add('active');
-            } else if (name === 'example') {
-                document.getElementById('exampleSection').style.display = 'block';
-                document.getElementById('navExample').classList.add('active');
-                if (!exampleInitialised) {
-                    initExample();
-                    exampleInitialised = true;
-                }
-            }
-        }
-    </script>
+<div
+id="defaultSection"
+class="default-landing text-center"
+>
+
+<div>
+
+<svg
+xmlns="http://www.w3.org/2000/svg"
+width="64"
+height="64"
+viewBox="0 0 24 24"
+fill="none"
+stroke="#cbd5e0"
+stroke-width="1.5"
+stroke-linecap="round"
+stroke-linejoin="round"
+class="mb-4"
+>
+
+<path
+d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+></path>
+
+<polyline
+points="14 2 14 8 20 8"
+></polyline>
+
+<line
+x1="16"
+y1="13"
+x2="8"
+y2="13"
+></line>
+
+<line
+x1="16"
+y1="17"
+x2="8"
+y2="17"
+></line>
+
+<polyline
+points="10 9 9 9 8 9"
+></polyline>
+
+</svg>
+
+<p class="text-muted">
+Select an option from the navigation bar above to get started.
+</p>
+
+</div>
+
+</div>
+
+
+<div
+id="generatorSection"
+class="container-fluid section-panel"
+style="display:none;"
+>
+
+<header class="text-center mb-0">
+
+<h1 class="display-4">
+Report Generator
+</h1>
+
+<p class="lead">
+Upload an XLSX file to generate Word or Text patient reports
+</p>
+
+</header>
+
+<main>
+
+<div class="row g-0">
+
+<div class="col-lg-6 mb-4 px-3 py-3">
+
+<div class="upload-section mb-4">
+
+<div class="file-input-wrapper">
+
+<input
+type="file"
+id="fileInput"
+accept=".xlsx,.xls"
+class="file-input"
+>
+
+<label
+for="fileInput"
+class="file-label"
+>
+
+<svg
+xmlns="http://www.w3.org/2000/svg"
+width="48"
+height="48"
+viewBox="0 0 24 24"
+fill="none"
+stroke="currentColor"
+stroke-width="2"
+stroke-linecap="round"
+stroke-linejoin="round"
+>
+
+<path
+d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"
+></path>
+
+<polyline
+points="17 8 12 3 7 8"
+></polyline>
+
+<line
+x1="12"
+y1="3"
+x2="12"
+y2="15"
+></line>
+
+</svg>
+
+<span class="label-text">
+Choose XLSX File
+</span>
+
+</label>
+
+</div>
+
+<p
+id="fileName"
+class="file-name text-center mt-2"
+></p>
+
+</div>
+
+
+<div
+id="previewSection"
+class="preview-section card mb-4"
+style="display:none;"
+>
+
+<div class="card-header">
+
+<h2 class="h5 mb-0">
+XLSX Data Preview
+</h2>
+
+</div>
+
+<div class="card-body">
+
+<div
+id="dataPreview"
+class="data-preview"
+></div>
+
+</div>
+
+</div>
+
+</div>
+
+
+<div class="col-lg-6 mb-4 px-3 py-3">
+
+<div
+id="reportPreviewSection"
+class="word-preview-section card sticky-preview"
+style="display:none;"
+>
+
+<div
+class="card-header d-flex justify-content-between align-items-center"
+>
+
+<h2 class="h5 mb-0">
+Report Preview
+</h2>
+
+<div class="d-flex align-items-center gap-2">
+
+<div
+class="btn-group btn-group-sm"
+role="group"
+aria-label="Report format tabs"
+>
+
+<button
+id="wordTabBtn"
+type="button"
+class="btn btn-outline-primary active"
+>
+Word (.docx)
+</button>
+
+<button
+id="textTabBtn"
+type="button"
+class="btn btn-outline-primary"
+>
+Text (.txt)
+</button>
+
+</div>
+
+<button
+id="refreshPreviewBtn"
+class="btn btn-sm btn-outline-primary"
+>
+
+<svg
+xmlns="http://www.w3.org/2000/svg"
+width="16"
+height="16"
+fill="currentColor"
+class="bi bi-arrow-clockwise"
+viewBox="0 0 16 16"
+>
+
+<path
+fill-rule="evenodd"
+d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"
+></path>
+
+<path
+d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"
+></path>
+
+</svg>
+
+Refresh
+
+</button>
+
+</div>
+
+</div>
+
+
+<div class="card-body">
+
+<div id="wordPreviewPanel">
+
+<div
+id="wordPreview"
+class="word-preview border rounded p-3"
+contenteditable="true"
+></div>
+
+<div class="alert alert-info mt-3 mb-0">
+
+<small>
+
+<strong>
+Tip:
+</strong>
+
+You can edit the content above before downloading.
+Changes will be included in the final Word document.
+
+</small>
+
+</div>
+
+</div>
+
+
+<div
+id="textPreviewPanel"
+style="display:none;"
+>
+
+<pre
+id="textPreview"
+class="text-preview border rounded p-3 mb-0"
+></pre>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+
+<div class="row">
+
+<div class="col-12 text-center">
+
+<button
+id="downloadBtn"
+class="btn btn-primary btn-lg"
+disabled
+>
+
+<svg
+xmlns="http://www.w3.org/2000/svg"
+width="20"
+height="20"
+viewBox="0 0 24 24"
+fill="none"
+stroke="currentColor"
+stroke-width="2"
+stroke-linecap="round"
+stroke-linejoin="round"
+class="me-2"
+>
+
+<path
+d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"
+></path>
+
+<polyline
+points="7 10 12 15 17 10"
+></polyline>
+
+<line
+x1="12"
+y1="15"
+x2="12"
+y2="3"
+></line>
+
+</svg>
+
+<span id="downloadBtnText">
+Download Word Report
+</span>
+
+</button>
+
+<div
+id="status"
+class="status-message mt-3"
+></div>
+
+</div>
+
+</div>
+
+</main>
+
+<footer class="text-center mt-5 text-muted">
+
+<p>
+A tool to automate generation of patient reports
+</p>
+
+</footer>
+
+</div>
+
+
+<div
+id="exampleSection"
+class="container-fluid section-panel opg-page"
+style="display:none;"
+>
+
+<header class="text-center mb-0">
+
+<h1 class="display-4">
+OPG Report
+</h1>
+
+<p class="lead mb-1">
+Upload a claim XLSX/XLS file to generate an OPG report
+</p>
+
+</header>
+
+
+<main class="opg-main">
+
+<div class="row g-0 opg-workspace">
+
+
+<div class="col-lg-6 px-3 py-2 opg-column">
+
+<div class="upload-section opg-upload">
+
+<div class="file-input-wrapper">
+
+<input
+type="file"
+id="opgFileInput"
+accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+class="file-input"
+>
+
+<label
+for="opgFileInput"
+class="file-label"
+>
+
+<svg
+xmlns="http://www.w3.org/2000/svg"
+width="42"
+height="42"
+viewBox="0 0 24 24"
+fill="none"
+stroke="currentColor"
+stroke-width="2"
+stroke-linecap="round"
+stroke-linejoin="round"
+>
+
+<path
+d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"
+></path>
+
+<polyline
+points="17 8 12 3 7 8"
+></polyline>
+
+<line
+x1="12"
+y1="3"
+x2="12"
+y2="15"
+></line>
+
+</svg>
+
+<span class="label-text">
+Choose Claim XLSX/XLS File
+</span>
+
+</label>
+
+</div>
+
+<p
+id="opgFileName"
+class="file-name text-center mt-2 mb-0"
+></p>
+
+</div>
+
+
+<div
+id="opgWarning"
+class="opg-warning"
+></div>
+
+
+<div class="card opg-card">
+
+<div class="card-header">
+
+<h2 class="h5 mb-0">
+Accepted Claim Rows
+</h2>
+
+</div>
+
+<div class="card-body">
+
+<div
+id="exampleDataPreview"
+class="data-preview opg-scroll"
+></div>
+
+</div>
+
+</div>
+
+</div>
+
+
+<div class="col-lg-6 px-3 py-2 opg-column">
+
+<div class="card opg-card">
+
+<div class="card-header">
+
+<h2 class="h5 mb-0">
+OPG Report Preview
+</h2>
+
+</div>
+
+<div class="card-body">
+
+<div
+id="exampleOutputPreview"
+class="word-preview border rounded p-3 opg-scroll"
+></div>
+
+<div class="alert alert-info mt-2 mb-0">
+
+<small>
+
+<strong>
+Tip:
+</strong>
+
+The visit-status line is intentionally left blank for manual entry
+after download.
+
+</small>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+
+<div class="opg-actions">
+
+<button
+id="exampleDownloadBtn"
+class="btn btn-primary btn-lg"
+disabled
+>
+
+<svg
+xmlns="http://www.w3.org/2000/svg"
+width="20"
+height="20"
+viewBox="0 0 24 24"
+fill="none"
+stroke="currentColor"
+stroke-width="2"
+stroke-linecap="round"
+stroke-linejoin="round"
+class="me-2"
+>
+
+<path
+d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"
+></path>
+
+<polyline
+points="7 10 12 15 17 10"
+></polyline>
+
+<line
+x1="12"
+y1="15"
+x2="12"
+y2="3"
+></line>
+
+</svg>
+
+<span id="exampleDownloadBtnText">
+Download OPG Report
+</span>
+
+</button>
+
+<div
+id="exampleStatus"
+class="status-message mt-2"
+></div>
+
+</div>
+
+</main>
+
+</div>
+
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/docx@7.8.2/build/index.js"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+
+<script src="js/app.js"></script>
+
+<script src="js/example.js"></script>
+
+
+<script>
+
+var exampleInitialised=false;
+
+function syncAppViewportHeight(){
+
+const nav=
+document.querySelector(
+'.app-navbar'
+);
+
+if(nav){
+
+document
+.documentElement
+.style
+.setProperty(
+'--app-navbar-height',
+`${nav.getBoundingClientRect().height}px`
+);
+
+}
+
+}
+
+
+function showSection(name){
+
+const landing=
+document.getElementById(
+'defaultSection'
+);
+
+const generator=
+document.getElementById(
+'generatorSection'
+);
+
+const opg=
+document.getElementById(
+'exampleSection'
+);
+
+landing.style.display=
+'none';
+
+generator.style.display=
+'none';
+
+opg.style.display=
+'none';
+
+document
+.getElementById(
+'navGenerator'
+)
+.classList
+.remove(
+'active'
+);
+
+document
+.getElementById(
+'navExample'
+)
+.classList
+.remove(
+'active'
+);
+
+
+if(
+name===
+'generator'
+){
+
+generator.style.display=
+'block';
+
+document
+.getElementById(
+'navGenerator'
+)
+.classList
+.add(
+'active'
+);
+
+}else if(
+name===
+'example'
+){
+
+syncAppViewportHeight();
+
+opg.style.display=
+'flex';
+
+document
+.getElementById(
+'navExample'
+)
+.classList
+.add(
+'active'
+);
+
+if(
+!exampleInitialised
+){
+
+initExample();
+
+exampleInitialised=
+true;
+
+}
+
+}
+
+}
+
+
+window.addEventListener(
+'load',
+syncAppViewportHeight
+);
+
+window.addEventListener(
+'resize',
+syncAppViewportHeight
+);
+
+
+const observedNavbar=
+document.querySelector(
+'.app-navbar'
+);
+
+
+if(
+observedNavbar&&
+typeof ResizeObserver!==
+'undefined'
+){
+
+new ResizeObserver(
+syncAppViewportHeight
+)
+.observe(
+observedNavbar
+);
+
+}
+
+</script>
+
 </body>
 </html>
