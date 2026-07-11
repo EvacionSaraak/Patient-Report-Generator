@@ -153,7 +153,8 @@ function displayPreview(data) {
     previewSection.style.display = 'block';
 }
 
-// Generate Word document preview
+// Generate Word document preview – mirrors the 2-column table format used in the
+// downloaded .docx (matching the Resources example report).
 function generateWordPreview(data) {
     if (!data || data.length === 0) {
         wordPreview.innerHTML = '<p class="text-muted">No data to preview.</p>';
@@ -163,56 +164,65 @@ function generateWordPreview(data) {
     const headers = data[0] || [];
     const rows = filterEmptyRows(data.slice(1));
 
-    // Find column indices
     const ptNoIndex = headers.findIndex(h => String(h).toLowerCase().includes('pt no'));
     const patientNameIndex = headers.findIndex(h => String(h).toLowerCase().includes('patient name'));
     const visitDateIndex = headers.findIndex(h => String(h).toLowerCase().includes('visit date'));
     const doctorIndex = headers.findIndex(h => String(h).toLowerCase().includes('doctor'));
     const personalRemindersIndex = headers.findIndex(h => String(h).toLowerCase().includes('personal reminders'));
 
-    // Get date range for header
-    const dateRange = getDateRange(data);
-    const headerText = dateRange.min && dateRange.max 
-        ? `PATIENT REPORT | ${dateRange.min} - ${dateRange.max}`
-        : 'PATIENT REPORT';
-
-    // Build HTML preview
     let html = '<div class="document-preview">';
-    html += `<h3 class="mb-3">${escapeHtml(headerText)}</h3>`;
 
     rows.forEach((row, index) => {
         if (index > 0) {
-            html += '<hr class="my-4">';
+            html += '<div style="margin: 8px 0;"></div>';
         }
 
         const ptNo = row[ptNoIndex] !== undefined ? String(row[ptNoIndex]) : '';
         const patientName = row[patientNameIndex] !== undefined ? String(row[patientNameIndex]) : '';
         const visitDate = row[visitDateIndex] !== undefined ? formatDate(row[visitDateIndex]) : '';
-        const doctor = row[doctorIndex] !== undefined ? String(row[doctorIndex]) : '';
-        const personalReminders = row[personalRemindersIndex] !== undefined ? row[personalRemindersIndex] : '';
-        const remarks = getRemarks(personalReminders);
+        const doctor = row[doctorIndex] !== undefined ? String(row[doctorIndex]).trim() : '';
+        const personalReminders = row[personalRemindersIndex] !== undefined ? String(row[personalRemindersIndex]).trim() : '';
 
-        html += `<div class="patient-record mb-3">`;
-        html += `<p class="mb-1"><strong>Date:</strong> ${escapeHtml(visitDate)}</p>`;
-        html += `<p class="mb-1 ms-2"><strong>File Number:</strong> ${escapeHtml(ptNo)}</p>`;
-        html += `<p class="mb-1 ms-2"><strong>Patient Name:</strong> ${escapeHtml(patientName)}</p>`;
-        html += `<p class="mb-1 ms-2"><strong>Doctor Name:</strong> ${escapeHtml(doctor)}</p>`;
-        
-        // Only add remarks line if remarks is not blank (excluding whitespace-only strings)
-        if (remarks && remarks.trim()) {
-            // Add yellow highlight to "Patient with new OPG" remarks
-            if (remarks === 'Patient with new OPG') {
-                html += `<p class="mb-1 ms-2"><strong>Remarks:</strong> <span style="background-color: yellow;">${escapeHtml(remarks)}</span></p>`;
-            } else {
-                html += `<p class="mb-1 ms-2"><strong>Remarks:</strong> ${escapeHtml(remarks)}</p>`;
-            }
+        // Highlight colour: yellow for "LAST VISIT …", green for "NEW PATIENT …"
+        let reminderStyle = '';
+        const remUpper = personalReminders.toUpperCase();
+        if (remUpper.startsWith('NEW PATIENT')) {
+            reminderStyle = 'background-color: #90EE90;';
+        } else if (remUpper.startsWith('LAST VISIT')) {
+            reminderStyle = 'background-color: yellow;';
         }
-        
-        html += `</div>`;
+
+        html += '<table style="border-collapse:collapse;width:100%;font-family:Arial,sans-serif;font-size:12pt;font-weight:bold;">';
+
+        // Row 0 – Personal Reminders
+        html += '<tr>';
+        html += '<td style="border:1px solid #000;padding:2px 6px;width:30%;"></td>';
+        if (personalReminders) {
+            html += `<td style="border:1px solid #000;padding:2px 6px;${reminderStyle}">${escapeHtml(personalReminders)}</td>`;
+        } else {
+            html += '<td style="border:1px solid #000;padding:2px 6px;"></td>';
+        }
+        html += '</tr>';
+
+        // Row 1 – Date
+        html += `<tr><td style="border:1px solid #000;padding:2px 6px;">Date:</td><td style="border:1px solid #000;padding:2px 6px;">${escapeHtml(visitDate)}</td></tr>`;
+
+        // Row 2 – File Number
+        html += `<tr><td style="border:1px solid #000;padding:2px 6px;">File Number:</td><td style="border:1px solid #000;padding:2px 6px;">${escapeHtml(ptNo)}</td></tr>`;
+
+        // Row 3 – Patient name
+        html += `<tr><td style="border:1px solid #000;padding:2px 6px;">Patient name:</td><td style="border:1px solid #000;padding:2px 6px;">${escapeHtml(patientName)}</td></tr>`;
+
+        // Row 4 – Doctor Name (omit when empty)
+        if (doctor) {
+            html += `<tr><td style="border:1px solid #000;padding:2px 6px;">Doctor Name:</td><td style="border:1px solid #000;padding:2px 6px;">${escapeHtml(doctor)}</td></tr>`;
+        }
+
+        html += '</table>';
     });
 
     html += '</div>';
-    
+
     wordPreview.innerHTML = html;
 }
 
@@ -565,224 +575,129 @@ function formatDate(dateValue) {
     return excelDateToJSDate(dateValue);
 }
 
-// Create document content
+// Create document content matching the Resources report format:
+// each patient is a 2-column table (label | value) with Arial 12pt bold,
+// personal reminders in the first row with yellow/green highlight.
 function createDocumentContent(data, lib) {
-    // Use the provided lib or try to get it from global scope
-    const docxLib = lib || docxLib || window.docx || docx;
-    
+    const docxLib = lib || window.docx || docx;
+
     const children = [];
 
-    // Get date range for header
-    const dateRange = getDateRange(data);
-    const headerText = dateRange.min && dateRange.max 
-        ? `PATIENT REPORT | ${dateRange.min} - ${dateRange.max}`
-        : 'PATIENT REPORT';
-
-    // Add title with date range
-    children.push(
-        new docxLib.Paragraph({
-            children: [
-                new docxLib.TextRun({
-                    text: headerText,
-                    font: 'Calibri',
-                    size: 32,  // 16pt for heading
-                    bold: true,
-                    color: '000000'  // Black text
-                })
-            ],
-            spacing: {
-                after: 400
-            }
-        })
-    );
-
-    // Process data if exists
-    if (data.length > 0) {
-        const headers = data[0] || [];
-        const rows = filterEmptyRows(data.slice(1));
-
-        // Find column indices
-        const ptNoIndex = headers.findIndex(h => String(h).toLowerCase().includes('pt no'));
-        const patientNameIndex = headers.findIndex(h => String(h).toLowerCase().includes('patient name'));
-        const visitDateIndex = headers.findIndex(h => String(h).toLowerCase().includes('visit date'));
-        const doctorIndex = headers.findIndex(h => String(h).toLowerCase().includes('doctor'));
-        const personalRemindersIndex = headers.findIndex(h => String(h).toLowerCase().includes('personal reminders'));
-
-        // Process each patient record
-        rows.forEach((row, index) => {
-            if (index > 0) {
-                // Add horizontal line separator between records
-                children.push(
-                    new docxLib.Paragraph({
-                        text: '',
-                        border: {
-                            top: {
-                                color: '000000',
-                                space: 1,
-                                style: 'single',
-                                size: 6
-                            }
-                        },
-                        spacing: {
-                            before: 200,
-                            after: 200
-                        }
-                    })
-                );
-            }
-
-            // Extract data from row
-            const ptNo = row[ptNoIndex] !== undefined ? String(row[ptNoIndex]) : '';
-            const patientName = row[patientNameIndex] !== undefined ? String(row[patientNameIndex]) : '';
-            const visitDate = row[visitDateIndex] !== undefined ? formatDate(row[visitDateIndex]) : '';
-            const doctor = row[doctorIndex] !== undefined ? String(row[doctorIndex]) : '';
-            const personalReminders = row[personalRemindersIndex] !== undefined ? row[personalRemindersIndex] : '';
-
-            // Determine remarks
-            const remarks = getRemarks(personalReminders);
-
-            // Add formatted patient record with bold labels, Calibri font, and size 12pt
-            // Date: [Visit Date]
-            children.push(
-                new docxLib.Paragraph({
-                    children: [
-                        new docxLib.TextRun({
-                            text: 'Date',
-                            bold: true,
-                            font: 'Calibri',
-                            size: 24,  // 12pt (size is in half-points)
-                            color: '000000'  // Black text
-                        }),
-                        new docxLib.TextRun({
-                            text: `: ${visitDate}`,
-                            font: 'Calibri',
-                            size: 24,  // 12pt
-                            color: '000000'  // Black text
-                        })
-                    ],
-                    spacing: { after: 100 }
-                })
-            );
-            
-            // File Number: [PT NO.]
-            children.push(
-                new docxLib.Paragraph({
-                    children: [
-                        new docxLib.TextRun({
-                            text: ' File Number',
-                            bold: true,
-                            font: 'Calibri',
-                            size: 24,  // 12pt
-                            color: '000000'  // Black text
-                        }),
-                        new docxLib.TextRun({
-                            text: `: ${ptNo}`,
-                            font: 'Calibri',
-                            size: 24,  // 12pt
-                            color: '000000'  // Black text
-                        })
-                    ],
-                    spacing: { after: 100 }
-                })
-            );
-            
-            // Patient Name: [Patient Name]
-            children.push(
-                new docxLib.Paragraph({
-                    children: [
-                        new docxLib.TextRun({
-                            text: ' Patient Name',
-                            bold: true,
-                            font: 'Calibri',
-                            size: 24,  // 12pt
-                            color: '000000'  // Black text
-                        }),
-                        new docxLib.TextRun({
-                            text: `: ${patientName}`,
-                            font: 'Calibri',
-                            size: 24,  // 12pt
-                            color: '000000'  // Black text
-                        })
-                    ],
-                    spacing: { after: 100 }
-                })
-            );
-            
-            // Doctor Name: [Doctor]
-            children.push(
-                new docxLib.Paragraph({
-                    children: [
-                        new docxLib.TextRun({
-                            text: ' Doctor Name',
-                            bold: true,
-                            font: 'Calibri',
-                            size: 24,  // 12pt
-                            color: '000000'  // Black text
-                        }),
-                        new docxLib.TextRun({
-                            text: `: ${doctor}`,
-                            font: 'Calibri',
-                            size: 24,  // 12pt
-                            color: '000000'  // Black text
-                        })
-                    ],
-                    spacing: { after: 100 }
-                })
-            );
-            
-            // Only add remarks line if remarks is not blank (excluding whitespace-only strings)
-            if (remarks && remarks.trim()) {
-                // Remarks: [remarks]
-                children.push(
-                    new docxLib.Paragraph({
-                        children: [
-                            new docxLib.TextRun({
-                                text: ' Remarks',
-                                bold: true,
-                                font: 'Calibri',
-                                size: 24,  // 12pt
-                                color: '000000'  // Black text
-                            }),
-                            new docxLib.TextRun({
-                                text: ': ',
-                                font: 'Calibri',
-                                size: 24,  // 12pt
-                                color: '000000'  // Black text
-                            }),
-                            new docxLib.TextRun({
-                                text: remarks,
-                                font: 'Calibri',
-                                size: 24,  // 12pt
-                                color: '000000',  // Black text
-                                highlight: remarks === 'Patient with new OPG' ? 'yellow' : undefined  // Yellow highlight for OPG remarks
-                            })
-                        ],
-                        spacing: { after: 100 }
-                    })
-                );
-            }
-            
-            // Add page break after every 5 patient records
-            if ((index + 1) % 5 === 0 && index + 1 < rows.length) {
-                children.push(
-                    new docxLib.Paragraph({
-                        text: '',
-                        pageBreakBefore: true
-                    })
-                );
-            }
-        });
-    } else {
-        children.push(
-            new docxLib.Paragraph({
-                text: 'No data available.',
-                font: 'Calibri',
-                spacing: {
-                    before: 200
-                }
-            })
-        );
+    if (!data || data.length <= 1) {
+        children.push(new docxLib.Paragraph({ text: 'No data available.' }));
+        return children;
     }
+
+    const headers = data[0] || [];
+    const rows = filterEmptyRows(data.slice(1));
+
+    const ptNoIndex = headers.findIndex(h => String(h).toLowerCase().includes('pt no'));
+    const patientNameIndex = headers.findIndex(h => String(h).toLowerCase().includes('patient name'));
+    const visitDateIndex = headers.findIndex(h => String(h).toLowerCase().includes('visit date'));
+    const doctorIndex = headers.findIndex(h => String(h).toLowerCase().includes('doctor'));
+    const personalRemindersIndex = headers.findIndex(h => String(h).toLowerCase().includes('personal reminders'));
+
+    const font = 'Arial';
+    const sz = 24; // 12pt in half-points
+
+    const makeRun = (text, highlightColor) => {
+        const opts = {
+            text: String(text || ''),
+            font,
+            size: sz,
+            bold: true,
+            color: '000000'
+        };
+        if (highlightColor) opts.highlight = highlightColor;
+        return new docxLib.TextRun(opts);
+    };
+
+    const borderDef = { style: 'single', size: 1, color: '000000' };
+    const tableBorders = {
+        top: borderDef,
+        bottom: borderDef,
+        left: borderDef,
+        right: borderDef,
+        insideHorizontal: borderDef,
+        insideVertical: borderDef
+    };
+
+    const makeCell = (runs, widthDxa) => new docxLib.TableCell({
+        children: [new docxLib.Paragraph({ children: runs })],
+        width: { size: widthDxa, type: 'dxa' },
+        margins: { top: 0, bottom: 0, left: 108, right: 108 }
+    });
+
+    rows.forEach((row, index) => {
+        if (index > 0) {
+            children.push(new docxLib.Paragraph({ text: '' }));
+        }
+
+        const ptNo = row[ptNoIndex] !== undefined ? String(row[ptNoIndex]) : '';
+        const patientName = row[patientNameIndex] !== undefined ? String(row[patientNameIndex]) : '';
+        const visitDate = row[visitDateIndex] !== undefined ? formatDate(row[visitDateIndex]) : '';
+        const doctor = row[doctorIndex] !== undefined ? String(row[doctorIndex]).trim() : '';
+        const personalReminders = row[personalRemindersIndex] !== undefined ? String(row[personalRemindersIndex]).trim() : '';
+
+        // Highlight colour: yellow for "LAST VISIT …", green for "NEW PATIENT …"
+        let reminderHighlight = null;
+        const remUpper = personalReminders.toUpperCase();
+        if (remUpper.startsWith('NEW PATIENT')) {
+            reminderHighlight = 'green';
+        } else if (remUpper.startsWith('LAST VISIT')) {
+            reminderHighlight = 'yellow';
+        }
+
+        const tableRows = [];
+
+        // Row 0 – Personal Reminders (left cell empty, right cell = reminders text)
+        tableRows.push(new docxLib.TableRow({
+            children: [
+                makeCell([], 2405),
+                makeCell(personalReminders ? [makeRun(personalReminders, reminderHighlight)] : [], 5670)
+            ]
+        }));
+
+        // Row 1 – Date
+        tableRows.push(new docxLib.TableRow({
+            children: [
+                makeCell([makeRun('Date:')], 2405),
+                makeCell([makeRun(visitDate)], 5670)
+            ]
+        }));
+
+        // Row 2 – File Number
+        tableRows.push(new docxLib.TableRow({
+            children: [
+                makeCell([makeRun('File Number:')], 2405),
+                makeCell([makeRun(ptNo)], 5670)
+            ]
+        }));
+
+        // Row 3 – Patient name
+        tableRows.push(new docxLib.TableRow({
+            children: [
+                makeCell([makeRun('Patient name:')], 2405),
+                makeCell([makeRun(patientName)], 5670)
+            ]
+        }));
+
+        // Row 4 – Doctor Name (omit row when empty, matching the reference format)
+        if (doctor) {
+            tableRows.push(new docxLib.TableRow({
+                children: [
+                    makeCell([makeRun('Doctor Name:')], 2405),
+                    makeCell([makeRun(doctor)], 5670)
+                ]
+            }));
+        }
+
+        children.push(new docxLib.Table({
+            rows: tableRows,
+            width: { size: 8075, type: 'dxa' },
+            borders: tableBorders
+        }));
+    });
 
     return children;
 }
