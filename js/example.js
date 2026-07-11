@@ -223,29 +223,54 @@ function renderOPGReportPreview(data) {
 }
 
 async function downloadOPGReport() {
+    const button = document.getElementById('exampleDownloadBtn');
+
     try {
         showExampleStatus('Generating OPG Report...', 'info');
+        if (button) button.disabled = true;
 
-        let lib =
-            (typeof docxLib !== 'undefined' && docxLib) ||
-            window.docx;
+        /*
+         * Import the browser-compatible DOCX module directly.
+         * This avoids relying on window.docx or the currently
+         * missing PizZip/Docxtemplater libraries.
+         */
+        const {
+            Document,
+            Packer,
+            Paragraph,
+            TextRun,
+            Table,
+            TableRow,
+            TableCell,
+            PageBreak,
+            WidthType,
+            TableLayoutType,
+            BorderStyle,
+            HeightRule,
+            VerticalAlign
+        } = await import(
+            'https://cdn.jsdelivr.net/npm/docx@8.2.2/+esm'
+        );
 
-        if (!lib && typeof docx !== 'undefined') {
-            lib = docx;
-        }
-
-        if (!lib) {
-            throw new Error(
-                'docx library not loaded. Please refresh the page and try again.'
-            );
-        }
-
-        if (!EXAMPLE_DATA || EXAMPLE_DATA.length <= 1) {
+        if (
+            !Array.isArray(EXAMPLE_DATA) ||
+            EXAMPLE_DATA.length <= 1
+        ) {
             throw new Error('No patient data is available.');
         }
 
         const headers = EXAMPLE_DATA[0] || [];
-        const rows = EXAMPLE_DATA.slice(1);
+
+        const rows = EXAMPLE_DATA
+            .slice(1)
+            .filter(row =>
+                row &&
+                row.some(value =>
+                    value !== undefined &&
+                    value !== null &&
+                    String(value).trim() !== ''
+                )
+            );
 
         const ptNoIdx = headers.findIndex(header =>
             String(header)
@@ -284,64 +309,37 @@ async function downloadOPGReport() {
             reminderIdx === -1
         ) {
             throw new Error(
-                'One or more required input columns could not be found.'
+                'Required patient columns could not be found.'
             );
         }
 
-        /*
-         * Measurements copied from the supplied example document.
-         */
-        const INFO_TABLE_WIDTH = 9913;
-
-        const INFO_COLUMN_WIDTHS = [
-            2117,
-            5386,
-            2410
-        ];
-
-        const OPG_TABLE_WIDTH = 9891;
-
-        const OPG_CELL_HEIGHT = 4891;
-
         const FONT = 'Arial';
+        const FONT_SIZE = 20;
 
-        /*
-         * Word font sizes use half-points.
-         * 18 = 9 pt.
-         */
-        const FONT_SIZE = 18;
-
-        const widthType = lib.WidthType
-            ? lib.WidthType.DXA
-            : 'dxa';
-
-        const fixedLayout = lib.TableLayoutType
-            ? lib.TableLayoutType.FIXED
-            : 'fixed';
-
-        const exactHeight = lib.HeightRule
-            ? lib.HeightRule.EXACT
-            : 'exact';
-
-        const singleBorder = {
-            style: lib.BorderStyle
-                ? lib.BorderStyle.SINGLE
-                : 'single',
-
-            size: 12,
+        const border = {
+            style: BorderStyle.SINGLE,
+            size: 4,
             color: '000000'
         };
 
         const tableBorders = {
-            top: singleBorder,
-            bottom: singleBorder,
-            left: singleBorder,
-            right: singleBorder,
-            insideHorizontal: singleBorder,
-            insideVertical: singleBorder
+            top: border,
+            bottom: border,
+            left: border,
+            right: border,
+            insideHorizontal: border,
+            insideVertical: border
         };
 
-        function makeTextRun(
+        function getValue(row, index) {
+            return index >= 0 &&
+                row[index] !== undefined &&
+                row[index] !== null
+                    ? String(row[index]).trim()
+                    : '';
+        }
+
+        function makeRun(
             text,
             highlight = null
         ) {
@@ -357,75 +355,85 @@ async function downloadOPGReport() {
                 options.highlight = highlight;
             }
 
-            return new lib.TextRun(options);
+            return new TextRun(options);
         }
 
         function makeInformationCell(
-            text,
+            label,
+            value,
             width
         ) {
-            return new lib.TableCell({
+            return new TableCell({
                 width: {
                     size: width,
-                    type: widthType
+                    type: WidthType.PERCENTAGE
+                },
+
+                verticalAlign:
+                    VerticalAlign.CENTER,
+
+                margins: {
+                    top: 35,
+                    bottom: 35,
+                    left: 75,
+                    right: 75
                 },
 
                 children: [
-                    new lib.Paragraph({
-                        children: [
-                            makeTextRun(text)
-                        ],
-
+                    new Paragraph({
                         spacing: {
                             before: 0,
                             after: 0,
                             line: 240
-                        }
+                        },
+
+                        children: [
+                            makeRun(label),
+                            makeRun(value)
+                        ]
                     })
                 ]
             });
         }
 
-        function createInformationTable(
+        function createPatientTable(
             fileNumber,
             patientName,
             doctor
         ) {
-            return new lib.Table({
+            return new Table({
                 width: {
-                    size: INFO_TABLE_WIDTH,
-                    type: widthType
+                    size: 100,
+                    type: WidthType.PERCENTAGE
                 },
 
-                columnWidths: INFO_COLUMN_WIDTHS,
+                layout:
+                    TableLayoutType.FIXED,
 
-                layout: fixedLayout,
-
-                borders: tableBorders,
+                borders:
+                    tableBorders,
 
                 rows: [
-                    new lib.TableRow({
+                    new TableRow({
                         cantSplit: true,
-
-                        height: {
-                            value: 92,
-                            rule: exactHeight
-                        },
 
                         children: [
                             makeInformationCell(
-                                `File #  ${fileNumber}`,
-                                INFO_COLUMN_WIDTHS[0]
+                                'File #  ',
+                                fileNumber,
+                                22
                             ),
 
                             makeInformationCell(
-                                `Pt. Name - ${patientName}`,
-                                INFO_COLUMN_WIDTHS[1]
+                                'Pt. Name -  ',
+                                patientName,
+                                55
                             ),
 
                             makeInformationCell(
+                                'Dr. ',
                                 doctor,
-                                INFO_COLUMN_WIDTHS[2]
+                                23
                             )
                         ]
                     })
@@ -436,38 +444,30 @@ async function downloadOPGReport() {
         function createReminderParagraph(
             reminder
         ) {
-            const reminderUpper = String(
-                reminder || ''
-            )
-                .trim()
-                .toUpperCase();
+            const reminderUpper =
+                reminder.toUpperCase();
 
             let highlight = null;
 
-            /*
-             * NEW PATIENT / NEW VISIT = green
-             * LAST VISIT = yellow
-             */
             if (
-                reminderUpper.startsWith('NEW PATIENT') ||
-                reminderUpper.startsWith('NEW VISIT')
+                reminderUpper.startsWith(
+                    'NEW PATIENT'
+                ) ||
+                reminderUpper.startsWith(
+                    'NEW VISIT'
+                )
             ) {
                 highlight = 'green';
             } else if (
-                reminderUpper.startsWith('LAST VISIT')
+                reminderUpper.startsWith(
+                    'LAST VISIT'
+                )
             ) {
                 highlight = 'yellow';
             }
 
-            return new lib.Paragraph({
-                children: reminder
-                    ? [
-                        makeTextRun(
-                            reminder,
-                            highlight
-                        )
-                    ]
-                    : [],
+            return new Paragraph({
+                keepNext: true,
 
                 spacing: {
                     before: 0,
@@ -475,49 +475,55 @@ async function downloadOPGReport() {
                     line: 240
                 },
 
-                keepNext: true
+                children: reminder
+                    ? [
+                        makeRun(
+                            reminder,
+                            highlight
+                        )
+                    ]
+                    : []
             });
         }
 
         function createEmptyOPGTable() {
-            return new lib.Table({
+            return new Table({
                 width: {
-                    size: OPG_TABLE_WIDTH,
-                    type: widthType
+                    size: 100,
+                    type: WidthType.PERCENTAGE
                 },
 
-                columnWidths: [
-                    OPG_TABLE_WIDTH
-                ],
+                layout:
+                    TableLayoutType.FIXED,
 
-                layout: fixedLayout,
-
-                borders: tableBorders,
+                borders:
+                    tableBorders,
 
                 rows: [
-                    new lib.TableRow({
+                    new TableRow({
                         cantSplit: true,
 
                         height: {
-                            value: OPG_CELL_HEIGHT,
-                            rule: exactHeight
+                            value: 3600,
+                            rule: HeightRule.EXACT
                         },
 
                         children: [
-                            new lib.TableCell({
+                            new TableCell({
                                 width: {
-                                    size: OPG_TABLE_WIDTH,
-                                    type: widthType
+                                    size: 100,
+                                    type:
+                                        WidthType.PERCENTAGE
                                 },
 
                                 children: [
-                                    new lib.Paragraph({
-                                        children: [],
-
+                                    new Paragraph({
                                         spacing: {
                                             before: 0,
                                             after: 0
-                                        }
+                                        },
+
+                                        children: []
                                     })
                                 ]
                             })
@@ -531,50 +537,56 @@ async function downloadOPGReport() {
 
         rows.forEach((row, index) => {
             /*
-             * The supplied example uses two patients per page.
+             * Start a new page after every
+             * two patients.
              */
             if (
                 index > 0 &&
                 index % 2 === 0
             ) {
                 documentChildren.push(
-                    new lib.Paragraph({
-                        pageBreakBefore: true,
-                        children: []
+                    new Paragraph({
+                        children: [
+                            new PageBreak()
+                        ]
                     })
                 );
             }
 
-            const fileNumber = String(
-                row[ptNoIdx] !== undefined
-                    ? row[ptNoIdx]
-                    : ''
-            ).trim();
+            const fileNumber =
+                getValue(
+                    row,
+                    ptNoIdx
+                );
 
-            const patientName = String(
-                row[nameIdx] !== undefined
-                    ? row[nameIdx]
-                    : ''
-            ).trim();
+            const patientName =
+                getValue(
+                    row,
+                    nameIdx
+                );
 
-            const doctor = String(
-                row[doctorIdx] !== undefined
-                    ? row[doctorIdx]
-                    : ''
-            ).trim();
+            const doctor =
+                stripDrPrefix(
+                    getValue(
+                        row,
+                        doctorIdx
+                    )
+                );
 
-            const reminder = String(
-                row[reminderIdx] !== undefined
-                    ? row[reminderIdx]
-                    : ''
-            ).trim();
+            const reminder =
+                getValue(
+                    row,
+                    reminderIdx
+                );
 
             /*
-             * Patient information remains entirely
-             * inside the three-column table.
+             * 1. Patient-information row.
+             *
+             * The reminder is deliberately
+             * not included in patientName.
              */
             documentChildren.push(
-                createInformationTable(
+                createPatientTable(
                     fileNumber,
                     patientName,
                     doctor
@@ -582,10 +594,10 @@ async function downloadOPGReport() {
             );
 
             /*
-             * The reminder is a separate paragraph
-             * below the information table.
+             * 2. Separate reminder/status line.
              *
-             * It is not included in Pt. Name.
+             * NEW PATIENT = green
+             * LAST VISIT = yellow
              */
             documentChildren.push(
                 createReminderParagraph(
@@ -594,61 +606,88 @@ async function downloadOPGReport() {
             );
 
             /*
-             * Large empty OPG area below the reminder.
+             * 3. Large empty OPG area.
              */
             documentChildren.push(
                 createEmptyOPGTable()
             );
+
+            /*
+             * Add the large gap between the
+             * first and second patient shown
+             * on each page.
+             */
+            if (
+                index % 2 === 0 &&
+                index < rows.length - 1
+            ) {
+                documentChildren.push(
+                    new Paragraph({
+                        spacing: {
+                            before: 0,
+                            after: 2800
+                        },
+
+                        children: []
+                    })
+                );
+            }
         });
 
-        const document = new lib.Document({
+        const document = new Document({
             sections: [
                 {
                     properties: {
                         page: {
+                            /*
+                             * A4 portrait.
+                             */
                             size: {
-                                width: 12240,
-                                height: 15840
+                                width: 11906,
+                                height: 16838
                             },
 
                             margin: {
-                                top: 1440,
-                                right: 1440,
-                                bottom: 1440,
-                                left: 1440,
-                                header: 708,
-                                footer: 708,
+                                top: 900,
+                                right: 1134,
+                                bottom: 900,
+                                left: 1134,
+                                header: 0,
+                                footer: 0,
                                 gutter: 0
                             }
                         }
                     },
 
-                    children: documentChildren
+                    children:
+                        documentChildren
                 }
             ]
         });
 
-        const blob = await lib.Packer.toBlob(
-            document
-        );
+        const blob =
+            await Packer.toBlob(
+                document
+            );
 
-        const dateValue =
-            dateIdx !== -1 &&
-            rows[0] &&
-            rows[0][dateIdx] !== undefined
+        const firstDate =
+            dateIdx >= 0 &&
+            rows[0]
                 ? rows[0][dateIdx]
                 : null;
 
-        const dateString =
-            dateValue !== null
+        const formattedDate =
+            firstDate !== undefined &&
+            firstDate !== null &&
+            firstDate !== ''
                 ? formatDate(
-                    dateValue
+                    firstDate
                 ).toUpperCase()
                 : 'OPG';
 
         saveAs(
             blob,
-            `REPORT FOR OPG - ${dateString}.docx`
+            `REPORT FOR OPG - ${formattedDate}.docx`
         );
 
         showExampleStatus(
@@ -657,13 +696,21 @@ async function downloadOPGReport() {
         );
 
     } catch (error) {
-        console.error(error);
+        console.error(
+            'OPG report error:',
+            error
+        );
 
         showExampleStatus(
             'Error generating OPG Report: ' +
             error.message,
             'error'
         );
+
+    } finally {
+        if (button) {
+            button.disabled = false;
+        }
     }
 }
 
