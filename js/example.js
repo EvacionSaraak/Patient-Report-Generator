@@ -63,13 +63,13 @@ function renderOPGReportPreview(data) {
     const drIdx        = headers.findIndex(h => String(h).toLowerCase().includes('doctor'));
     const remindersIdx = headers.findIndex(h => String(h).toLowerCase().includes('personal reminders'));
 
+    // One "page" per row: 3-col info table + giant empty image placeholder
+    const pageStyle = 'border:2px solid #ccc;padding:12px;margin-bottom:16px;background:#fff;page-break-after:always;';
+    const tblStyle  = 'border-collapse:collapse;width:100%;font-family:Arial,sans-serif;font-weight:bold;font-size:11pt;';
+    const thStyle   = 'border:1px solid #000;padding:4px 8px;';
+    const imgStyle  = 'border:1px solid #000;width:100%;height:200px;box-sizing:border-box;';
+
     let html = '<div class="document-preview">';
-    html += '<table style="border-collapse:collapse;width:100%;font-family:inherit;">';
-    html += '<thead><tr>';
-    html += '<th style="border:1px solid #000;padding:4px 8px;font-weight:bold;">File #</th>';
-    html += '<th style="border:1px solid #000;padding:4px 8px;font-weight:bold;">Pt. Name -</th>';
-    html += '<th style="border:1px solid #000;padding:4px 8px;font-weight:bold;">Dr.</th>';
-    html += '</tr></thead><tbody>';
 
     rows.forEach(row => {
         const fileNo    = String(row[ptNoIdx]      !== undefined ? row[ptNoIdx]      : '');
@@ -78,14 +78,24 @@ function renderOPGReportPreview(data) {
         const dr        = String(row[drIdx]        !== undefined ? row[drIdx]        : '');
         const ptNameCell = reminders ? `${name} - ${reminders}` : name;
 
-        html += '<tr>';
-        html += `<td style="border:1px solid #000;padding:4px 8px;">${escapeHtml(fileNo)}</td>`;
-        html += `<td style="border:1px solid #000;padding:4px 8px;">${escapeHtml(ptNameCell)}</td>`;
-        html += `<td style="border:1px solid #000;padding:4px 8px;">${escapeHtml(dr)}</td>`;
-        html += '</tr>';
+        html += `<div style="${pageStyle}">`;
+
+        // 3-column info row
+        html += `<table style="${tblStyle}"><tbody><tr>`;
+        html += `<td style="${thStyle}width:22%;">File #&nbsp;&nbsp;${escapeHtml(fileNo)}</td>`;
+        html += `<td style="${thStyle}width:55%;">Pt. Name - ${escapeHtml(ptNameCell)}</td>`;
+        html += `<td style="${thStyle}width:23%;">Dr. ${escapeHtml(dr)}</td>`;
+        html += '</tr></tbody></table>';
+
+        // Giant empty image-paste area
+        html += `<table style="${tblStyle}margin-top:6px;"><tbody><tr>`;
+        html += `<td style="${imgStyle}"></td>`;
+        html += '</tr></tbody></table>';
+
+        html += '</div>';
     });
 
-    html += '</tbody></table></div>';
+    html += '</div>';
     container.innerHTML = html;
 }
 
