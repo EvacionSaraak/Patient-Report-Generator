@@ -263,6 +263,12 @@ async function downloadOPGReport() {
         );
 
         const patients = rows.map(row => {
+            const patientName = String(
+                row[nameIdx] !== undefined
+                    ? row[nameIdx]
+                    : ''
+            ).trim();
+
             const reminder = String(
                 row[remindersIdx] !== undefined
                     ? row[remindersIdx]
@@ -276,11 +282,14 @@ async function downloadOPGReport() {
                         : ''
                 ).trim(),
 
-                pt_name: String(
-                    row[nameIdx] !== undefined
-                        ? row[nameIdx]
-                        : ''
-                ).trim(),
+                /*
+                 * The current Word template only has {pt_name}.
+                 * Put the reminder on the following line so it is
+                 * included in the downloaded document.
+                 */
+                pt_name: reminder
+                    ? `${patientName}\n${reminder}`
+                    : patientName,
 
                 dr: stripDrPrefix(
                     String(
@@ -288,15 +297,7 @@ async function downloadOPGReport() {
                             ? row[drIdx]
                             : ''
                     ).trim()
-                ),
-
-                reminder: reminder,
-
-                reminder_type: /^NEW\s+PATIENT/i.test(reminder)
-                    ? 'new'
-                    : /^LAST\s+VISIT/i.test(reminder)
-                        ? 'last'
-                        : ''
+                )
             };
         });
 
