@@ -1,239 +1,740 @@
 // OPG Report page logic
 
-// Remove a leading "Dr." prefix (case-insensitive) so that the template label "Dr. {dr}"
-// does not produce "Dr. Dr. XXXX" when the source data already starts with "Dr.".
-function stripDrPrefix(name) {
-    return name.replace(/^dr\.?\s+/i, '').trim();
-}
-const EXAMPLE_DATA = [
-    ['PT NO.', 'Patient Name', 'Visit Date', 'Doctor', 'Personal Reminders'],
-    ['TVIP00384762', 'Rauda hasan ismail yousef alblooshi', 46212, 'Dr. ALTAYEB Saeed Taher Abu Asbeh', 'LAST VISIT DEC. 11, 2025'],
-    ['TVIP00370129', 'KHALFAN MOHAMMED ALI BUTI ALDHAHERI', 46212, 'Dr. Ahmad Hamdan', 'LAST VISIT FEB. 25, 2025'],
-    ['TVIP01014122', 'HODA AZIZ SHAHIN DEZH', 46212, 'Dr. Ahmad Hamdan', 'NEW PATIENT (CASH)'],
-    ['TVIP00384914', 'Reed Salem Saif Masi Alkaabi', 46212, 'Dr. Kais Altahan', 'LAST VISIT APRIL. 24, 2025'],
-    ['TVIP01014497', 'MAYED KHEDHIR EISSA ABBAS MOOSA', 46212, 'Dr. FATIMA ALZHRA ALFAOUR', 'NEW PATIENT'],
-    ['TVIP01014496', 'MAHRA KHEDHIR EISSA ABBAS MOOSA', 46212, 'Dr. FATIMA ALZHRA ALFAOUR', 'NEW PATIENT'],
-    ['TVIP00391312', 'Sahad Khalifa Ali Muadad Almazrouei', 46212, 'Dr. Basil Mohamed Elsadig Elhag Ahmed', 'LAST VISIT AUG. 13, 2025'],
-    ['TVIP00362278', 'HAMMDA SULAIMAN KHALFAN AL ALAWI', 46212, 'Dr. Basil Mohamed Elsadig Elhag Ahmed', 'LAST VISIT DEC. 06, 2025'],
-    ['TVIP00357112', 'EISA DARWISH KHALIFA SALEM ALKAABI', 46212, 'Dr. Kais Altahan', 'LAST VISIT JULY 06, 2023'],
-    ['TVIP01014576', 'ALI HAMAD DARWISH AHMED ALREMEITHI', 46212, 'Dr. Kais Altahan', 'NEW PATIENT'],
-    ['TVIP00390512', 'Saeed Rashed Ahmed Alderei', 46212, 'Dr. Basil Mohamed Elsadig Elhag Ahmed', 'NEW PATIENT'],
-    ['TVIP00345476', 'ABDULLA GHUMRAN AL DHAHERI', 46212, '', 'LAST VISIT SEPT. 23, 2025'],
+let opgData = null;
+let opgDocxModulePromise = null;
+
+const OPG_HEADERS = [
+    'PT NO.',
+    'Patient Name',
+    'Visit Date',
+    'Doctor',
+    'Personal Reminders'
 ];
 
+function stripDrPrefix(name) {
+    return String(name || '')
+        .replace(/^dr\.?\s+/i, '')
+        .trim();
+}
+
+function normalizeWordText(value) {
+    return String(value || '')
+        .replace(/\u00a0/g, ' ')
+        .replace(/[\t\r\n]+/g, ' ')
+        .replace(/\s{2,}/g, ' ')
+        .trim();
+}
+
 function initExample() {
-    document.getElementById('exampleDownloadBtn').addEventListener('click', downloadOPGReport);
-    displayExampleDataPreview(EXAMPLE_DATA);
-    renderOPGReportPreview(EXAMPLE_DATA);
-}
-
-function displayExampleDataPreview(data) {
-    const container = document.getElementById('exampleDataPreview');
-    if (!data || data.length === 0) {
-        container.innerHTML = '<p>No example data.</p>';
-        return;
-    }
-
-    const headers = data[0] || [];
-    let html = '<table><thead><tr>';
-    headers.forEach(header => {
-        html += `<th>${escapeHtml(String(header || ''))}</th>`;
-    });
-    html += '</tr></thead><tbody>';
-
-    data.slice(1).forEach(row => {
-        html += '<tr>';
-        headers.forEach((_, index) => {
-            const cellValue = row[index] !== undefined ? row[index] : '';
-            const displayValue = index === 2 ? formatDate(cellValue) : escapeHtml(String(cellValue));
-            html += `<td>${displayValue}</td>`;
-        });
-        html += '</tr>';
-    });
-
-    html += '</tbody></table>';
-    container.innerHTML = html;
-}
-
-function renderOPGReportPreview(data) {
-    const container = document.getElementById('exampleOutputPreview');
-
-    if (!data || data.length <= 1) {
-        container.innerHTML = '<p>No data.</p>';
-        return;
-    }
-
-    const headers = data[0] || [];
-    const rows = data.slice(1);
-
-    const ptNoIdx = headers.findIndex(header =>
-        String(header).toLowerCase().includes('pt no')
-    );
-
-    const nameIdx = headers.findIndex(header =>
-        String(header).toLowerCase().includes('patient name')
-    );
-
-    const drIdx = headers.findIndex(header =>
-        String(header).toLowerCase().includes('doctor')
-    );
-
-    const remindersIdx = headers.findIndex(header =>
-        String(header).toLowerCase().includes('personal reminders')
-    );
-
-    let html = '<div class="document-preview">';
-
-    rows.forEach(row => {
-        const fileNo = String(
-            row[ptNoIdx] !== undefined
-                ? row[ptNoIdx]
-                : ''
-        ).trim();
-
-        const patientName = String(
-            row[nameIdx] !== undefined
-                ? row[nameIdx]
-                : ''
-        ).trim();
-
-        const doctor = stripDrPrefix(
-            String(
-                row[drIdx] !== undefined
-                    ? row[drIdx]
-                    : ''
-            ).trim()
+    const fileInput =
+        document.getElementById(
+            'opgFileInput'
         );
 
-        const reminder = String(
-            row[remindersIdx] !== undefined
-                ? row[remindersIdx]
-                : ''
-        ).trim();
+    const downloadBtn =
+        document.getElementById(
+            'exampleDownloadBtn'
+        );
 
-        const reminderUpper = reminder.toUpperCase();
+    if (
+        !fileInput ||
+        !downloadBtn
+    ) {
+        console.error(
+            'OPG Report controls were not found.'
+        );
 
-        let reminderColour = 'transparent';
+        return;
+    }
+
+    fileInput.addEventListener(
+        'change',
+        handleOPGFileSelect
+    );
+
+    downloadBtn.addEventListener(
+        'click',
+        downloadOPGReport
+    );
+
+    downloadBtn.disabled = true;
+
+    document
+        .getElementById(
+            'exampleDataPreview'
+        )
+        .innerHTML = `
+            <p class="text-muted mb-0">
+                Upload a Patient Report DOCX file
+                to view the extracted patient data.
+            </p>
+        `;
+
+    document
+        .getElementById(
+            'exampleOutputPreview'
+        )
+        .innerHTML = `
+            <p class="text-muted mb-0">
+                The OPG report preview will appear
+                here after a file is loaded.
+            </p>
+        `;
+}
+
+async function handleOPGFileSelect(
+    event
+) {
+    const file =
+        event.target.files[0];
+
+    const fileName =
+        document.getElementById(
+            'opgFileName'
+        );
+
+    const downloadBtn =
+        document.getElementById(
+            'exampleDownloadBtn'
+        );
+
+    if (!file) {
+        return;
+    }
+
+    opgData = null;
+
+    downloadBtn.disabled = true;
+
+    if (
+        !/\.docx$/i.test(
+            file.name
+        )
+    ) {
+        fileName.textContent = '';
+
+        showExampleStatus(
+            'Please select a valid DOCX file.',
+            'error'
+        );
+
+        event.target.value = '';
+
+        return;
+    }
+
+    if (
+        typeof mammoth ===
+        'undefined'
+    ) {
+        showExampleStatus(
+            'The Word-file reader did not load. ' +
+            'Refresh the page and try again.',
+            'error'
+        );
+
+        return;
+    }
+
+    fileName.textContent =
+        `Selected: ${file.name}`;
+
+    showExampleStatus(
+        'Reading Patient Report...',
+        'info'
+    );
+
+    try {
+        const arrayBuffer =
+            await file.arrayBuffer();
+
+        const result =
+            await mammoth.convertToHtml({
+                arrayBuffer
+            });
+
+        const records =
+            parsePatientReportHtml(
+                result.value
+            );
 
         if (
-            reminderUpper.startsWith('NEW PATIENT') ||
-            reminderUpper.startsWith('NEW VISIT')
+            !records.length
         ) {
-            reminderColour = '#00ff00';
-        } else if (
-            reminderUpper.startsWith('LAST VISIT')
-        ) {
-            reminderColour = '#ffff00';
+            throw new Error(
+                'No patient records were found. ' +
+                'The file must use the ' +
+                'Patient Report table format.'
+            );
         }
 
-        html += `
-            <div
-                style="
-                    margin-bottom:20px;
-                    font-family:Arial,sans-serif;
-                "
-            >
-                <table
-                    style="
-                        width:100%;
-                        table-layout:fixed;
-                        border-collapse:collapse;
-                        font-size:11pt;
-                        font-weight:bold;
-                    "
-                >
-                    <colgroup>
-                        <col style="width:22%;">
-                        <col style="width:54%;">
-                        <col style="width:24%;">
-                    </colgroup>
+        opgData = [
+            OPG_HEADERS,
 
-                    <tbody>
-                        <tr>
-                            <td
-                                style="
-                                    border:1px solid #000;
-                                    padding:3px 6px;
-                                "
-                            >
-                                File #&nbsp;&nbsp;${escapeHtml(fileNo)}
-                            </td>
+            ...records.map(
+                record => [
+                    record.fileNumber,
+                    record.patientName,
+                    record.visitDate,
+                    record.doctor,
+                    record.reminder
+                ]
+            )
+        ];
 
-                            <td
-                                style="
-                                    border:1px solid #000;
-                                    padding:3px 6px;
-                                "
-                            >
-                                Pt. Name -&nbsp;&nbsp;${escapeHtml(patientName)}
-                            </td>
+        displayExampleDataPreview(
+            opgData
+        );
 
-                            <td
-                                style="
-                                    border:1px solid #000;
-                                    padding:3px 6px;
-                                "
-                            >
-                                Dr. ${escapeHtml(doctor)}
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+        renderOPGReportPreview(
+            opgData
+        );
+
+        downloadBtn.disabled = false;
+
+        if (
+            result.messages &&
+            result.messages.length
+        ) {
+            console.warn(
+                'Mammoth conversion messages:',
+                result.messages
+            );
+        }
+
+        showExampleStatus(
+            `${records.length} patient record` +
+            `${records.length === 1 ? '' : 's'} ` +
+            'loaded successfully.',
+            'success'
+        );
+
+    } catch (error) {
+        console.error(
+            'OPG input error:',
+            error
+        );
+
+        opgData = null;
+
+        downloadBtn.disabled = true;
+
+        document
+            .getElementById(
+                'exampleDataPreview'
+            )
+            .innerHTML = `
+                <p class="text-muted mb-0">
+                    No patient data loaded.
+                </p>
+            `;
+
+        document
+            .getElementById(
+                'exampleOutputPreview'
+            )
+            .innerHTML = `
+                <p class="text-muted mb-0">
+                    No OPG preview available.
+                </p>
+            `;
+
+        showExampleStatus(
+            'Error reading Patient Report: ' +
+            error.message,
+            'error'
+        );
+    }
+}
+
+function getWordCellText(
+    cell
+) {
+    const paragraphs =
+        Array.from(
+            cell.querySelectorAll(
+                'p'
+            )
+        )
+        .map(
+            paragraph =>
+                normalizeWordText(
+                    paragraph.textContent
+                )
+        )
+        .filter(
+            Boolean
+        );
+
+    return normalizeWordText(
+        paragraphs.length
+            ? paragraphs.join(' ')
+            : cell.textContent
+    );
+}
+
+function parsePatientReportHtml(
+    html
+) {
+    const parsedDocument =
+        new DOMParser()
+            .parseFromString(
+                html,
+                'text/html'
+            );
+
+    const records = [];
+
+    parsedDocument
+        .querySelectorAll(
+            'table'
+        )
+        .forEach(
+            table => {
+
+                const record = {
+                    reminder: '',
+                    visitDate: '',
+                    fileNumber: '',
+                    patientName: '',
+                    doctor: ''
+                };
+
+                table
+                    .querySelectorAll(
+                        'tr'
+                    )
+                    .forEach(
+                        row => {
+
+                            const cells =
+                                Array.from(
+                                    row.cells || []
+                                )
+                                .map(
+                                    getWordCellText
+                                );
+
+                            if (
+                                !cells.length
+                            ) {
+                                return;
+                            }
+
+                            const label =
+                                normalizeWordText(
+                                    cells[0]
+                                )
+                                .replace(
+                                    /:$/,
+                                    ''
+                                )
+                                .toLowerCase();
+
+                            const value =
+                                normalizeWordText(
+                                    cells
+                                        .slice(1)
+                                        .join(' ')
+                                );
+
+                            if (
+                                !label
+                            ) {
+                                if (
+                                    /^(last visit|new patient|new visit)\b/i
+                                        .test(
+                                            value
+                                        )
+                                ) {
+                                    record.reminder =
+                                        value;
+                                }
+
+                                return;
+                            }
+
+                            if (
+                                label ===
+                                'date'
+                            ) {
+                                record.visitDate =
+                                    value;
+
+                            } else if (
+                                label ===
+                                    'file number' ||
+                                label ===
+                                    'file no' ||
+                                label ===
+                                    'file #'
+                            ) {
+                                record.fileNumber =
+                                    value;
+
+                            } else if (
+                                label ===
+                                    'patient name' ||
+                                label ===
+                                    'pt name'
+                            ) {
+                                record.patientName =
+                                    value;
+
+                            } else if (
+                                label ===
+                                    'doctor name' ||
+                                label ===
+                                    'doctor' ||
+                                label ===
+                                    'dr'
+                            ) {
+                                record.doctor =
+                                    value;
+                            }
+                        }
+                    );
+
+                if (
+                    record.fileNumber ||
+                    record.patientName
+                ) {
+                    records.push(
+                        record
+                    );
+                }
+            }
+        );
+
+    return records;
+}
+
+function displayExampleDataPreview(
+    data
+) {
+    const container =
+        document.getElementById(
+            'exampleDataPreview'
+        );
+
+    if (
+        !data ||
+        data.length <= 1
+    ) {
+        container.innerHTML = `
+            <p class="text-muted mb-0">
+                No patient data loaded.
+            </p>
         `;
 
-        if (reminder) {
+        return;
+    }
+
+    const headers =
+        data[0];
+
+    let html =
+        '<table>' +
+        '<thead>' +
+        '<tr>';
+
+    headers.forEach(
+        header => {
+
             html += `
-                <div
-                    style="
-                        margin:0 0 3px 0;
-                        padding:0;
-                        min-height:18px;
-                        font-size:11pt;
-                        font-weight:bold;
-                    "
-                >
-                    <span
-                        style="
-                            background:${reminderColour};
-                            padding:0 2px;
-                        "
-                    >
-                        ${escapeHtml(reminder)}
-                    </span>
-                </div>
+                <th>
+                    ${escapeHtml(
+                        String(
+                            header || ''
+                        )
+                    )}
+                </th>
             `;
         }
+    );
 
-        html += `
-                <div
-                    style="
-                        width:100%;
-                        height:300px;
-                        border:1px solid #000;
-                        box-sizing:border-box;
-                    "
-                ></div>
-            </div>
+    html +=
+        '</tr>' +
+        '</thead>' +
+        '<tbody>';
+
+    data
+        .slice(1)
+        .forEach(
+            row => {
+
+                html += '<tr>';
+
+                headers.forEach(
+                    (
+                        _,
+                        index
+                    ) => {
+
+                        html += `
+                            <td>
+                                ${escapeHtml(
+                                    String(
+                                        row[index] ??
+                                        ''
+                                    )
+                                )}
+                            </td>
+                        `;
+                    }
+                );
+
+                html += '</tr>';
+            }
+        );
+
+    html +=
+        '</tbody>' +
+        '</table>';
+
+    container.innerHTML =
+        html;
+}
+
+function renderOPGReportPreview(
+    data
+) {
+    const container =
+        document.getElementById(
+            'exampleOutputPreview'
+        );
+
+    if (
+        !data ||
+        data.length <= 1
+    ) {
+        container.innerHTML = `
+            <p class="text-muted mb-0">
+                No OPG preview available.
+            </p>
         `;
-    });
+
+        return;
+    }
+
+    const headers =
+        data[0];
+
+    const rows =
+        data.slice(1);
+
+    const ptNoIdx =
+        headers.findIndex(
+            header =>
+                String(
+                    header
+                )
+                .toLowerCase()
+                .includes(
+                    'pt no'
+                )
+        );
+
+    const nameIdx =
+        headers.findIndex(
+            header =>
+                String(
+                    header
+                )
+                .toLowerCase()
+                .includes(
+                    'patient name'
+                )
+        );
+
+    const doctorIdx =
+        headers.findIndex(
+            header =>
+                String(
+                    header
+                )
+                .toLowerCase()
+                .includes(
+                    'doctor'
+                )
+        );
+
+    const reminderIdx =
+        headers.findIndex(
+            header =>
+                String(
+                    header
+                )
+                .toLowerCase()
+                .includes(
+                    'personal reminders'
+                )
+        );
+
+    let html =
+        '<div class="opg-document-preview">';
+
+    rows.forEach(
+        row => {
+
+            const fileNumber =
+                normalizeWordText(
+                    row[ptNoIdx]
+                );
+
+            const patientName =
+                normalizeWordText(
+                    row[nameIdx]
+                );
+
+            const doctor =
+                stripDrPrefix(
+                    row[doctorIdx]
+                );
+
+            const reminder =
+                normalizeWordText(
+                    row[reminderIdx]
+                );
+
+            const reminderUpper =
+                reminder.toUpperCase();
+
+            const reminderClass =
+                reminderUpper
+                    .startsWith(
+                        'LAST VISIT'
+                    )
+                    ? 'opg-reminder-last'
+
+                    : /^(NEW PATIENT|NEW VISIT)/
+                        .test(
+                            reminderUpper
+                        )
+                        ? 'opg-reminder-new'
+
+                        : '';
+
+            html += `
+                <section
+                    class="opg-preview-record"
+                >
+
+                    <table
+                        class="opg-info-table"
+                    >
+
+                        <colgroup>
+
+                            <col
+                                style="width:22%"
+                            >
+
+                            <col
+                                style="width:55%"
+                            >
+
+                            <col
+                                style="width:23%"
+                            >
+
+                        </colgroup>
+
+                        <tr>
+
+                            <td>
+                                File #&nbsp;&nbsp;
+                                ${escapeHtml(
+                                    fileNumber
+                                )}
+                            </td>
+
+                            <td>
+                                Pt. Name -&nbsp;&nbsp;
+                                ${escapeHtml(
+                                    patientName
+                                )}
+                            </td>
+
+                            <td>
+                                Dr.
+                                ${escapeHtml(
+                                    doctor
+                                )}
+                            </td>
+
+                        </tr>
+
+                    </table>
+
+                    <div
+                        class="opg-reminder-line"
+                    >
+
+                        <span
+                            class="${reminderClass}"
+                        >
+
+                            ${escapeHtml(
+                                reminder
+                            )}
+
+                        </span>
+
+                    </div>
+
+                    <div
+                        class="opg-empty-image-area"
+                    ></div>
+
+                </section>
+            `;
+        }
+    );
 
     html += '</div>';
 
-    container.innerHTML = html;
+    container.innerHTML =
+        html;
+}
+
+function loadOPGDocxModule() {
+    if (
+        !opgDocxModulePromise
+    ) {
+        opgDocxModulePromise =
+            import(
+                'https://cdn.jsdelivr.net/npm/docx@8.2.2/+esm'
+            );
+    }
+
+    return opgDocxModulePromise;
 }
 
 async function downloadOPGReport() {
-    const button = document.getElementById('exampleDownloadBtn');
+    const button =
+        document.getElementById(
+            'exampleDownloadBtn'
+        );
 
     try {
-        showExampleStatus('Generating OPG Report...', 'info');
-        if (button) button.disabled = true;
+        if (
+            !opgData ||
+            opgData.length <= 1
+        ) {
+            throw new Error(
+                'Upload a Patient Report ' +
+                'DOCX file first.'
+            );
+        }
 
-        /*
-         * Import the browser-compatible DOCX module directly.
-         * This avoids relying on window.docx or the currently
-         * missing PizZip/Docxtemplater libraries.
-         */
+        showExampleStatus(
+            'Generating OPG Report...',
+            'info'
+        );
+
+        button.disabled = true;
+
         const {
             Document,
             Packer,
@@ -248,189 +749,244 @@ async function downloadOPGReport() {
             BorderStyle,
             HeightRule,
             VerticalAlign
-        } = await import(
-            'https://cdn.jsdelivr.net/npm/docx@8.2.2/+esm'
-        );
+        } =
+            await loadOPGDocxModule();
 
-        if (
-            !Array.isArray(EXAMPLE_DATA) ||
-            EXAMPLE_DATA.length <= 1
-        ) {
-            throw new Error('No patient data is available.');
-        }
+        const headers =
+            opgData[0];
 
-        const headers = EXAMPLE_DATA[0] || [];
+        const rows =
+            opgData.slice(1);
 
-        const rows = EXAMPLE_DATA
-            .slice(1)
-            .filter(row =>
-                row &&
-                row.some(value =>
-                    value !== undefined &&
-                    value !== null &&
-                    String(value).trim() !== ''
-                )
+        const ptNoIdx =
+            headers.findIndex(
+                header =>
+                    String(
+                        header
+                    )
+                    .toLowerCase()
+                    .includes(
+                        'pt no'
+                    )
             );
 
-        const ptNoIdx = headers.findIndex(header =>
-            String(header)
-                .toLowerCase()
-                .includes('pt no')
-        );
-
-        const nameIdx = headers.findIndex(header =>
-            String(header)
-                .toLowerCase()
-                .includes('patient name')
-        );
-
-        const doctorIdx = headers.findIndex(header =>
-            String(header)
-                .toLowerCase()
-                .includes('doctor')
-        );
-
-        const reminderIdx = headers.findIndex(header =>
-            String(header)
-                .toLowerCase()
-                .includes('personal reminders')
-        );
-
-        const dateIdx = headers.findIndex(header =>
-            String(header)
-                .toLowerCase()
-                .includes('visit date')
-        );
-
-        if (
-            ptNoIdx === -1 ||
-            nameIdx === -1 ||
-            doctorIdx === -1 ||
-            reminderIdx === -1
-        ) {
-            throw new Error(
-                'Required patient columns could not be found.'
+        const nameIdx =
+            headers.findIndex(
+                header =>
+                    String(
+                        header
+                    )
+                    .toLowerCase()
+                    .includes(
+                        'patient name'
+                    )
             );
-        }
 
-        const FONT = 'Arial';
-        const FONT_SIZE = 20;
+        const doctorIdx =
+            headers.findIndex(
+                header =>
+                    String(
+                        header
+                    )
+                    .toLowerCase()
+                    .includes(
+                        'doctor'
+                    )
+            );
+
+        const reminderIdx =
+            headers.findIndex(
+                header =>
+                    String(
+                        header
+                    )
+                    .toLowerCase()
+                    .includes(
+                        'personal reminders'
+                    )
+            );
+
+        const dateIdx =
+            headers.findIndex(
+                header =>
+                    String(
+                        header
+                    )
+                    .toLowerCase()
+                    .includes(
+                        'visit date'
+                    )
+            );
 
         const border = {
-            style: BorderStyle.SINGLE,
+            style:
+                BorderStyle.SINGLE,
+
             size: 4,
-            color: '000000'
+
+            color:
+                '000000'
         };
 
-        const tableBorders = {
-            top: border,
-            bottom: border,
-            left: border,
-            right: border,
-            insideHorizontal: border,
-            insideVertical: border
+        const borders = {
+            top:
+                border,
+
+            bottom:
+                border,
+
+            left:
+                border,
+
+            right:
+                border,
+
+            insideHorizontal:
+                border,
+
+            insideVertical:
+                border
         };
 
-        function getValue(row, index) {
-            return index >= 0 &&
-                row[index] !== undefined &&
-                row[index] !== null
-                    ? String(row[index]).trim()
-                    : '';
-        }
-
-        function makeRun(
+        const makeRun = (
             text,
             highlight = null
-        ) {
-            const options = {
-                text: String(text || ''),
-                font: FONT,
-                size: FONT_SIZE,
-                bold: true,
-                color: '000000'
-            };
+        ) =>
+            new TextRun({
 
-            if (highlight) {
-                options.highlight = highlight;
-            }
+                text:
+                    String(
+                        text || ''
+                    ),
 
-            return new TextRun(options);
-        }
+                font:
+                    'Arial',
 
-        function makeInformationCell(
+                size:
+                    20,
+
+                bold:
+                    true,
+
+                color:
+                    '000000',
+
+                ...(
+                    highlight
+                        ? {
+                            highlight
+                        }
+                        : {}
+                )
+            });
+
+        const makeInfoCell = (
             label,
             value,
             width
-        ) {
-            return new TableCell({
+        ) =>
+            new TableCell({
+
                 width: {
-                    size: width,
-                    type: WidthType.PERCENTAGE
+                    size:
+                        width,
+
+                    type:
+                        WidthType
+                            .PERCENTAGE
                 },
 
                 verticalAlign:
-                    VerticalAlign.CENTER,
+                    VerticalAlign
+                        .CENTER,
 
                 margins: {
-                    top: 35,
-                    bottom: 35,
-                    left: 75,
-                    right: 75
+                    top:
+                        35,
+
+                    bottom:
+                        35,
+
+                    left:
+                        75,
+
+                    right:
+                        75
                 },
 
                 children: [
+
                     new Paragraph({
+
                         spacing: {
-                            before: 0,
-                            after: 0,
-                            line: 240
+                            before:
+                                0,
+
+                            after:
+                                0,
+
+                            line:
+                                240
                         },
 
                         children: [
-                            makeRun(label),
-                            makeRun(value)
+
+                            makeRun(
+                                label
+                            ),
+
+                            makeRun(
+                                value
+                            )
                         ]
                     })
                 ]
             });
-        }
 
-        function createPatientTable(
+        const createPatientTable = (
             fileNumber,
             patientName,
             doctor
-        ) {
-            return new Table({
+        ) =>
+            new Table({
+
                 width: {
-                    size: 100,
-                    type: WidthType.PERCENTAGE
+                    size:
+                        100,
+
+                    type:
+                        WidthType
+                            .PERCENTAGE
                 },
 
                 layout:
-                    TableLayoutType.FIXED,
+                    TableLayoutType
+                        .FIXED,
 
-                borders:
-                    tableBorders,
+                borders,
 
                 rows: [
+
                     new TableRow({
-                        cantSplit: true,
+
+                        cantSplit:
+                            true,
 
                         children: [
-                            makeInformationCell(
+
+                            makeInfoCell(
                                 'File #  ',
                                 fileNumber,
                                 22
                             ),
 
-                            makeInformationCell(
+                            makeInfoCell(
                                 'Pt. Name -  ',
                                 patientName,
                                 55
                             ),
 
-                            makeInformationCell(
+                            makeInfoCell(
                                 'Dr. ',
                                 doctor,
                                 23
@@ -439,255 +995,284 @@ async function downloadOPGReport() {
                     })
                 ]
             });
-        }
 
-        function createReminderParagraph(
+        const createReminderParagraph = (
             reminder
-        ) {
-            const reminderUpper =
-                reminder.toUpperCase();
+        ) => {
 
-            let highlight = null;
+            const upper =
+                reminder
+                    .toUpperCase();
 
-            if (
-                reminderUpper.startsWith(
-                    'NEW PATIENT'
-                ) ||
-                reminderUpper.startsWith(
-                    'NEW VISIT'
-                )
-            ) {
-                highlight = 'green';
-            } else if (
-                reminderUpper.startsWith(
-                    'LAST VISIT'
-                )
-            ) {
-                highlight = 'yellow';
-            }
+            const highlight =
+                upper
+                    .startsWith(
+                        'LAST VISIT'
+                    )
+                    ? 'yellow'
+
+                    : /^(NEW PATIENT|NEW VISIT)/
+                        .test(
+                            upper
+                        )
+                        ? 'green'
+
+                        : null;
 
             return new Paragraph({
-                keepNext: true,
+
+                keepNext:
+                    true,
 
                 spacing: {
-                    before: 0,
-                    after: 0,
-                    line: 240
+                    before:
+                        0,
+
+                    after:
+                        0,
+
+                    line:
+                        240
                 },
 
-                children: reminder
-                    ? [
-                        makeRun(
-                            reminder,
-                            highlight
-                        )
+                children:
+                    reminder
+
+                        ? [
+                            makeRun(
+                                reminder,
+                                highlight
+                            )
+                        ]
+
+                        : []
+            });
+        };
+
+        const createEmptyOPGTable =
+            () =>
+                new Table({
+
+                    width: {
+                        size:
+                            100,
+
+                        type:
+                            WidthType
+                                .PERCENTAGE
+                    },
+
+                    layout:
+                        TableLayoutType
+                            .FIXED,
+
+                    borders,
+
+                    rows: [
+
+                        new TableRow({
+
+                            cantSplit:
+                                true,
+
+                            height: {
+                                value:
+                                    6000,
+
+                                rule:
+                                    HeightRule
+                                        .EXACT
+                            },
+
+                            children: [
+
+                                new TableCell({
+
+                                    width: {
+                                        size:
+                                            100,
+
+                                        type:
+                                            WidthType
+                                                .PERCENTAGE
+                                    },
+
+                                    children: [
+
+                                        new Paragraph({
+                                            children: []
+                                        })
+                                    ]
+                                })
+                            ]
+                        })
                     ]
-                    : []
-            });
-        }
+                });
 
-        function createEmptyOPGTable() {
-            return new Table({
-                width: {
-                    size: 100,
-                    type: WidthType.PERCENTAGE
-                },
+        const children = [];
 
-                layout:
-                    TableLayoutType.FIXED,
+        rows.forEach(
+            (
+                row,
+                index
+            ) => {
 
-                borders:
-                    tableBorders,
+                if (
+                    index > 0 &&
+                    index % 2 === 0
+                ) {
+                    children.push(
 
-                rows: [
-                    new TableRow({
-                        cantSplit: true,
+                        new Paragraph({
 
-                        height: {
-                            value: 3600,
-                            rule: HeightRule.EXACT
-                        },
+                            children: [
 
-                        children: [
-                            new TableCell({
-                                width: {
-                                    size: 100,
-                                    type:
-                                        WidthType.PERCENTAGE
-                                },
+                                new PageBreak()
+                            ]
+                        })
+                    );
+                }
 
-                                children: [
-                                    new Paragraph({
-                                        spacing: {
-                                            before: 0,
-                                            after: 0
-                                        },
+                const fileNumber =
+                    normalizeWordText(
+                        row[ptNoIdx]
+                    );
 
-                                        children: []
-                                    })
-                                ]
-                            })
-                        ]
-                    })
-                ]
-            });
-        }
+                const patientName =
+                    normalizeWordText(
+                        row[nameIdx]
+                    );
 
-        const documentChildren = [];
+                const doctor =
+                    stripDrPrefix(
+                        row[doctorIdx]
+                    );
 
-        rows.forEach((row, index) => {
-            /*
-             * Start a new page after every
-             * two patients.
-             */
-            if (
-                index > 0 &&
-                index % 2 === 0
-            ) {
-                documentChildren.push(
-                    new Paragraph({
-                        children: [
-                            new PageBreak()
-                        ]
-                    })
-                );
-            }
+                const reminder =
+                    normalizeWordText(
+                        row[reminderIdx]
+                    );
 
-            const fileNumber =
-                getValue(
-                    row,
-                    ptNoIdx
-                );
+                children.push(
 
-            const patientName =
-                getValue(
-                    row,
-                    nameIdx
-                );
-
-            const doctor =
-                stripDrPrefix(
-                    getValue(
-                        row,
-                        doctorIdx
+                    createPatientTable(
+                        fileNumber,
+                        patientName,
+                        doctor
                     )
                 );
 
-            const reminder =
-                getValue(
-                    row,
-                    reminderIdx
+                children.push(
+
+                    createReminderParagraph(
+                        reminder
+                    )
                 );
 
-            /*
-             * 1. Patient-information row.
-             *
-             * The reminder is deliberately
-             * not included in patientName.
-             */
-            documentChildren.push(
-                createPatientTable(
-                    fileNumber,
-                    patientName,
-                    doctor
-                )
-            );
+                children.push(
 
-            /*
-             * 2. Separate reminder/status line.
-             *
-             * NEW PATIENT = green
-             * LAST VISIT = yellow
-             */
-            documentChildren.push(
-                createReminderParagraph(
-                    reminder
-                )
-            );
-
-            /*
-             * 3. Large empty OPG area.
-             */
-            documentChildren.push(
-                createEmptyOPGTable()
-            );
-
-            /*
-             * Add the large gap between the
-             * first and second patient shown
-             * on each page.
-             */
-            if (
-                index % 2 === 0 &&
-                index < rows.length - 1
-            ) {
-                documentChildren.push(
-                    new Paragraph({
-                        spacing: {
-                            before: 0,
-                            after: 2800
-                        },
-
-                        children: []
-                    })
+                    createEmptyOPGTable()
                 );
-            }
-        });
 
-        const document = new Document({
-            sections: [
-                {
-                    properties: {
-                        page: {
-                            /*
-                             * A4 portrait.
-                             */
-                            size: {
-                                width: 11906,
-                                height: 16838
+                if (
+                    index % 2 === 0 &&
+                    index <
+                        rows.length - 1
+                ) {
+                    children.push(
+
+                        new Paragraph({
+
+                            spacing: {
+                                before:
+                                    0,
+
+                                after:
+                                    480
                             },
 
-                            margin: {
-                                top: 900,
-                                right: 1134,
-                                bottom: 900,
-                                left: 1134,
-                                header: 0,
-                                footer: 0,
-                                gutter: 0
-                            }
-                        }
-                    },
-
-                    children:
-                        documentChildren
+                            children:
+                                []
+                        })
+                    );
                 }
-            ]
-        });
+            }
+        );
+
+        const document =
+            new Document({
+
+                sections: [
+
+                    {
+                        properties: {
+
+                            page: {
+
+                                size: {
+                                    width:
+                                        11906,
+
+                                    height:
+                                        16838
+                                },
+
+                                margin: {
+                                    top:
+                                        650,
+
+                                    right:
+                                        270,
+
+                                    bottom:
+                                        650,
+
+                                    left:
+                                        270,
+
+                                    header:
+                                        0,
+
+                                    footer:
+                                        0,
+
+                                    gutter:
+                                        0
+                                }
+                            }
+                        },
+
+                        children
+                    }
+                ]
+            });
 
         const blob =
             await Packer.toBlob(
                 document
             );
 
-        const firstDate =
+        const dateValue =
             dateIdx >= 0 &&
             rows[0]
-                ? rows[0][dateIdx]
-                : null;
 
-        const formattedDate =
-            firstDate !== undefined &&
-            firstDate !== null &&
-            firstDate !== ''
-                ? formatDate(
-                    firstDate
-                ).toUpperCase()
-                : 'OPG';
+                ? normalizeWordText(
+                    rows[0][dateIdx]
+                )
+
+                : '';
+
+        const dateText =
+            dateValue ||
+            'OPG';
 
         saveAs(
             blob,
-            `REPORT FOR OPG - ${formattedDate}.docx`
+
+            'REPORT FOR OPG - ' +
+            dateText
+                .toUpperCase() +
+            '.docx'
         );
 
         showExampleStatus(
@@ -696,6 +1281,7 @@ async function downloadOPGReport() {
         );
 
     } catch (error) {
+
         console.error(
             'OPG report error:',
             error
@@ -708,14 +1294,30 @@ async function downloadOPGReport() {
         );
 
     } finally {
-        if (button) {
-            button.disabled = false;
+
+        if (
+            button
+        ) {
+            button.disabled =
+                !opgData ||
+                opgData.length <= 1;
         }
     }
 }
 
-function showExampleStatus(message, type) {
-    const statusDiv = document.getElementById('exampleStatus');
-    statusDiv.textContent = message;
-    statusDiv.className = 'status-message ' + type;
+function showExampleStatus(
+    message,
+    type
+) {
+    const statusDiv =
+        document.getElementById(
+            'exampleStatus'
+        );
+
+    statusDiv.textContent =
+        message;
+
+    statusDiv.className =
+        'status-message mt-3 ' +
+        type;
 }
