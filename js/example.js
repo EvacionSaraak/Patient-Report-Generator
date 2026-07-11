@@ -1,4 +1,10 @@
 // OPG Report page logic
+
+// Remove a leading "Dr." prefix (case-insensitive) so that the template label "Dr. {dr}"
+// does not produce "Dr. Dr. XXXX" when the source data already starts with "Dr.".
+function stripDrPrefix(name) {
+    return name.replace(/^dr\.?\s+/i, '').trim();
+}
 const EXAMPLE_DATA = [
     ['PT NO.', 'Patient Name', 'Visit Date', 'Doctor', 'Personal Reminders'],
     ['TVIP00384762', 'Rauda hasan ismail yousef alblooshi', 46212, 'Dr. ALTAYEB Saeed Taher Abu Asbeh', 'LAST VISIT DEC. 11, 2025'],
@@ -75,7 +81,7 @@ function renderOPGReportPreview(data) {
         const fileNo    = String(row[ptNoIdx]      !== undefined ? row[ptNoIdx]      : '');
         const name      = String(row[nameIdx]      !== undefined ? row[nameIdx]      : '');
         const reminders = String(row[remindersIdx] !== undefined ? row[remindersIdx] : '');
-        const dr        = String(row[drIdx]        !== undefined ? row[drIdx]        : '');
+        const dr        = stripDrPrefix(String(row[drIdx] !== undefined ? row[drIdx] : ''));
         const ptNameCell = reminders ? `${name} - ${reminders}` : name;
 
         html += `<div style="${pageStyle}">`;
@@ -125,7 +131,7 @@ async function downloadOPGReport() {
             return {
                 file_no: String(row[ptNoIdx] !== undefined ? row[ptNoIdx] : ''),
                 pt_name,
-                dr: String(row[drIdx] !== undefined ? row[drIdx] : '').trim(),
+                dr: stripDrPrefix(String(row[drIdx] !== undefined ? row[drIdx] : '').trim()),
             };
         });
 
