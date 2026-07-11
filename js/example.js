@@ -233,15 +233,21 @@ async function downloadOPGReport() {
         const rows = EXAMPLE_DATA.slice(1);
 
         const ptNoIdx = headers.findIndex(header =>
-            String(header).toLowerCase().includes('pt no')
+            String(header)
+                .toLowerCase()
+                .includes('pt no')
         );
 
         const nameIdx = headers.findIndex(header =>
-            String(header).toLowerCase().includes('patient name')
+            String(header)
+                .toLowerCase()
+                .includes('patient name')
         );
 
         const drIdx = headers.findIndex(header =>
-            String(header).toLowerCase().includes('doctor')
+            String(header)
+                .toLowerCase()
+                .includes('doctor')
         );
 
         const remindersIdx = headers.findIndex(header =>
@@ -251,7 +257,9 @@ async function downloadOPGReport() {
         );
 
         const dateIdx = headers.findIndex(header =>
-            String(header).toLowerCase().includes('visit date')
+            String(header)
+                .toLowerCase()
+                .includes('visit date')
         );
 
         const patients = rows.map(row => {
@@ -260,8 +268,6 @@ async function downloadOPGReport() {
                     ? row[remindersIdx]
                     : ''
             ).trim();
-
-            const reminderUpper = reminder.toUpperCase();
 
             return {
                 file_no: String(
@@ -284,15 +290,13 @@ async function downloadOPGReport() {
                     ).trim()
                 ),
 
-                new_patient: reminderUpper.includes('NEW PATIENT')
-                    ? reminder
-                    : '',
+                reminder: reminder,
 
-                last_visit: reminderUpper.includes('LAST VISIT')
-                    ? reminder
-                    : '',
-
-                reminder
+                reminder_type: /^NEW\s+PATIENT/i.test(reminder)
+                    ? 'new'
+                    : /^LAST\s+VISIT/i.test(reminder)
+                        ? 'last'
+                        : ''
             };
         });
 
