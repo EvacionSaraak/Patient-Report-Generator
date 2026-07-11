@@ -4,14 +4,18 @@ const EXAMPLE_OUTPUT_FILENAME = 'REPORT FOR OPG (EXAMPLE OUTPUT).docx';
 // Example page logic
 const EXAMPLE_DATA = [
     ['PT NO.', 'Patient Name', 'Visit Date', 'Doctor', 'Personal Reminders'],
-    [2401, 'Ahmad Al-Hassan', 46212, 'Dr. Samir Nasser', 'OPG taken today'],
-    [2402, 'Fatima Al-Rashid', 46212, 'Dr. Layla Karimi', ''],
-    [2403, 'Mohammed Al-Khatib', 46211, 'Dr. Samir Nasser', 'New OPG required'],
-    [2404, 'Sara Abdullah', 46211, 'Dr. Layla Karimi', ''],
-    [2405, 'Omar Al-Farsi', 46210, 'Dr. Samir Nasser', ''],
-    [2406, 'Nour Al-Amin', 46210, 'Dr. Layla Karimi', 'OPG imaging done'],
-    [2407, 'Khalid Al-Mansour', 46212, 'Dr. Samir Nasser', ''],
-    [2408, 'Rania Al-Zahra', 46211, 'Dr. Layla Karimi', '']
+    ['TVIP00384762', 'Rauda hasan ismail yousef alblooshi', 46212, 'Dr. ALTAYEB Saeed Taher Abu Asbeh', 'LAST VISIT DEC. 11, 2025'],
+    ['TVIP00370129', 'KHALFAN MOHAMMED ALI BUTI ALDHAHERI', 46212, 'Dr. Ahmad Hamdan', 'LAST VISIT FEB. 25, 2025'],
+    ['TVIP01014122', 'HODA AZIZ SHAHIN DEZH', 46212, 'Dr. Ahmad Hamdan', 'NEW PATIENT (CASH)'],
+    ['TVIP00384914', 'Reed Salem Saif Masi Alkaabi', 46212, 'Dr. Kais Altahan', 'LAST VISIT APRIL. 24, 2025'],
+    ['TVIP01014497', 'MAYED KHEDHIR EISSA ABBAS MOOSA', 46212, 'Dr. FATIMA ALZHRA ALFAOUR', 'NEW PATIENT'],
+    ['TVIP01014496', 'MAHRA KHEDHIR EISSA ABBAS MOOSA', 46212, 'Dr. FATIMA ALZHRA ALFAOUR', 'NEW PATIENT'],
+    ['TVIP00391312', 'Sahad Khalifa Ali Muadad Almazrouei', 46212, 'Dr. Basil Mohamed Elsadig Elhag Ahmed', 'LAST VISIT AUG. 13, 2025'],
+    ['TVIP00362278', 'HAMMDA SULAIMAN KHALFAN AL ALAWI', 46212, 'Dr. Basil Mohamed Elsadig Elhag Ahmed', 'LAST VISIT DEC. 06, 2025'],
+    ['TVIP00357112', 'EISA DARWISH KHALIFA SALEM ALKAABI', 46212, 'Dr. Kais Altahan', 'LAST VISIT JULY 06, 2023'],
+    ['TVIP01014576', 'ALI HAMAD DARWISH AHMED ALREMEITHI', 46212, 'Dr. Kais Altahan', 'NEW PATIENT'],
+    ['TVIP00390512', 'Saeed Rashed Ahmed Alderei', 46212, 'Dr. Basil Mohamed Elsadig Elhag Ahmed', 'NEW PATIENT'],
+    ['TVIP00345476', 'ABDULLA GHUMRAN AL DHAHERI', 46212, '', 'LAST VISIT SEPT. 23, 2025'],
 ];
 
 function initExample() {
