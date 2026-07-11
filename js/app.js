@@ -1,8 +1,6 @@
 // Global variables
 let workbookData = null;
 let parsedData = null;
-let previewContent = null; // Store preview content for editing
-let docxLib = null; // Store docx library reference
 let selectedDownloadFormat = 'docx';
 
 // DOM elements
@@ -21,24 +19,6 @@ const textPreviewPanel = document.getElementById('textPreviewPanel');
 const wordTabBtn = document.getElementById('wordTabBtn');
 const textTabBtn = document.getElementById('textTabBtn');
 const refreshPreviewBtn = document.getElementById('refreshPreviewBtn');
-
-// Wait for libraries to load
-window.addEventListener('load', function() {
-    // Wait a bit for external scripts to fully initialize
-    setTimeout(function() {
-        // Check if docx library is loaded
-        if (typeof docx !== 'undefined') {
-            docxLib = docx;
-            console.log('docx library loaded successfully');
-        } else if (window.docx) {
-            docxLib = window.docx;
-            console.log('docx library loaded from window');
-        } else {
-            console.error('docx library not found - check CDN connection');
-            showStatus('Warning: Document library not loaded. Refresh the page if download fails.', 'error');
-        }
-    }, 100);
-});
 
 // Event listeners
 fileInput.addEventListener('change', handleFileSelect);
@@ -303,7 +283,7 @@ async function generateReport() {
     await generateWordDocument();
 }
 
-// Generate Word document
+// Generate Word document using docxtemplater and the patient_report_template.docx
 async function generateWordDocument() {
     if (!parsedData || parsedData.length === 0) {
         showStatus('No data to export.', 'error');
@@ -314,44 +294,52 @@ async function generateWordDocument() {
         showStatus('Generating Word document...', 'info');
         downloadBtn.disabled = true;
 
-        // Check if docx library is available with multiple fallback attempts
-        let lib = docxLib || window.docx;
-        
-        // Try accessing it directly as a last resort
-        if (!lib && typeof docx !== 'undefined') {
-            lib = docx;
-            docxLib = docx; // Cache it for future use
+        if (typeof PizZip === 'undefined' || typeof docxtemplater === 'undefined') {
+            throw new Error('Templating libraries not loaded. Please refresh the page.');
         }
-        
-        if (!lib) {
-            throw new Error('docx library is not loaded. Please refresh the page and try again.');
+        if (typeof PATIENT_REPORT_TEMPLATE_B64 === 'undefined') {
+            throw new Error('Report template not found. Please refresh the page.');
         }
 
-        // Always use createDocumentContent to preserve formatting
-        // Don't use getEditedContent which strips formatting
-        const contentToUse = createDocumentContent(parsedData, lib);
+        const headers = parsedData[0] || [];
+        const rows = filterEmptyRows(parsedData.slice(1));
 
-        // Create a new document using docx
-        const doc = new lib.Document({
-            sections: [{
-                properties: {},
-                children: contentToUse
-            }]
+        const ptNoIdx       = headers.findIndex(h => String(h).toLowerCase().includes('pt no'));
+        const nameIdx       = headers.findIndex(h => String(h).toLowerCase().includes('patient name'));
+        const dateIdx       = headers.findIndex(h => String(h).toLowerCase().includes('visit date'));
+        const drIdx         = headers.findIndex(h => String(h).toLowerCase().includes('doctor'));
+        const remindersIdx  = headers.findIndex(h => String(h).toLowerCase().includes('personal reminders'));
+
+        const patients = rows.map(row => {
+            const reminder = remindersIdx >= 0 && row[remindersIdx] !== undefined
+                ? String(row[remindersIdx]).trim() : '';
+            const remUpper = reminder.toUpperCase();
+            return {
+                file_no:    ptNoIdx  >= 0 && row[ptNoIdx]  !== undefined ? String(row[ptNoIdx])  : '',
+                pt_name:    nameIdx  >= 0 && row[nameIdx]  !== undefined ? String(row[nameIdx])  : '',
+                visit_date: dateIdx  >= 0 && row[dateIdx]  !== undefined ? formatDate(row[dateIdx]) : '',
+                dr:         drIdx    >= 0 && row[drIdx]    !== undefined ? String(row[drIdx]).trim() : '',
+                reminder,
+                is_yellow: remUpper.startsWith('LAST VISIT'),
+                is_green:  remUpper.startsWith('NEW PATIENT'),
+            };
         });
 
-        // Generate dynamic filename based on date range
-        const dateRange = getDateRange(parsedData);
-        let filename = 'PATIENT REPORT _ DATED ';
-        if (dateRange.min && dateRange.max) {
-            filename += `${dateRange.min} - ${dateRange.max}.docx`;
-        } else {
-            filename += 'Unknown.docx';
-        }
+        const zip = new PizZip(PATIENT_REPORT_TEMPLATE_B64, { base64: true });
+        const doc = new docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
+        doc.render({ patients });
 
-        // Generate and download the document
-        const blob = await lib.Packer.toBlob(doc);
+        const dateRange = getDateRange(parsedData);
+        let filename = 'PATIENT REPORT DATED ';
+        filename += dateRange.min ? dateRange.min : 'Unknown';
+        filename += '.docx';
+
+        const blob = doc.getZip().generate({
+            type: 'blob',
+            mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        });
         saveAs(blob, filename);
-        
+
         showStatus('Word document generated successfully!', 'success');
         downloadBtn.disabled = false;
     } catch (error) {
@@ -391,69 +379,6 @@ function generateTextDocument() {
         console.error('Error details:', error);
         downloadBtn.disabled = false;
     }
-}
-
-// Get edited content from preview or generate from data
-function getEditedContent(lib) {
-    // Parse the edited HTML preview to extract text
-    const previewDiv = wordPreview;
-    const paragraphs = [];
-
-    if (previewDiv.textContent.trim()) {
-        // Extract text from the editable preview
-        const lines = previewDiv.innerText.split('\n').filter(line => line.trim());
-        
-        lines.forEach((line, index) => {
-            const trimmedLine = line.trim();
-            if (!trimmedLine) return;
-
-            // Check if it's a title
-            if (trimmedLine === 'Patient Reports') {
-                paragraphs.push(
-                    new lib.Paragraph({
-                        text: trimmedLine,
-                        heading: lib.HeadingLevel.HEADING_1,
-                        spacing: { after: 300 }
-                    })
-                );
-            }
-            // Check if it's a separator
-            else if (trimmedLine.includes('___') || trimmedLine === '---') {
-                paragraphs.push(
-                    new lib.Paragraph({
-                        text: '_____________________',
-                        spacing: { before: 200, after: 200 }
-                    })
-                );
-            }
-            // Regular content
-            else {
-                paragraphs.push(
-                    new lib.Paragraph({
-                        text: trimmedLine,
-                        spacing: { after: 100 }
-                    })
-                );
-            }
-        });
-    } else {
-        // Fallback to original data
-        return createDocumentContent(parsedData, lib);
-    }
-
-    return paragraphs.length > 0 ? paragraphs : createDocumentContent(parsedData, lib);
-}
-
-// Helper function to generate remarks from Personal Reminders field
-function getRemarks(personalReminders) {
-    if (!personalReminders) {
-        return '';
-    }
-    const remindersStr = String(personalReminders).toUpperCase();
-    if (remindersStr.includes('OPG')) {
-        return 'Patient with new OPG';
-    }
-    return '';
 }
 
 // Helper function to convert Excel serial date to readable format
@@ -573,133 +498,6 @@ function formatDate(dateValue) {
     
     // Otherwise convert from Excel serial
     return excelDateToJSDate(dateValue);
-}
-
-// Create document content matching the Resources report format:
-// each patient is a 2-column table (label | value) with Arial 12pt bold,
-// personal reminders in the first row with yellow/green highlight.
-function createDocumentContent(data, lib) {
-    const docxLib = lib || window.docx || docx;
-
-    const children = [];
-
-    if (!data || data.length <= 1) {
-        children.push(new docxLib.Paragraph({ text: 'No data available.' }));
-        return children;
-    }
-
-    const headers = data[0] || [];
-    const rows = filterEmptyRows(data.slice(1));
-
-    const ptNoIndex = headers.findIndex(h => String(h).toLowerCase().includes('pt no'));
-    const patientNameIndex = headers.findIndex(h => String(h).toLowerCase().includes('patient name'));
-    const visitDateIndex = headers.findIndex(h => String(h).toLowerCase().includes('visit date'));
-    const doctorIndex = headers.findIndex(h => String(h).toLowerCase().includes('doctor'));
-    const personalRemindersIndex = headers.findIndex(h => String(h).toLowerCase().includes('personal reminders'));
-
-    const font = 'Arial';
-    const sz = 24; // 12pt in half-points
-
-    const makeRun = (text, highlightColor) => {
-        const opts = {
-            text: String(text || ''),
-            font,
-            size: sz,
-            bold: true,
-            color: '000000'
-        };
-        if (highlightColor) opts.highlight = highlightColor;
-        return new docxLib.TextRun(opts);
-    };
-
-    const borderDef = { style: 'single', size: 1, color: '000000' };
-    const tableBorders = {
-        top: borderDef,
-        bottom: borderDef,
-        left: borderDef,
-        right: borderDef,
-        insideHorizontal: borderDef,
-        insideVertical: borderDef
-    };
-
-    const makeCell = (runs, widthDxa) => new docxLib.TableCell({
-        children: [new docxLib.Paragraph({ children: runs })],
-        width: { size: widthDxa, type: 'dxa' },
-        margins: { top: 0, bottom: 0, left: 108, right: 108 }
-    });
-
-    rows.forEach((row, index) => {
-        if (index > 0) {
-            children.push(new docxLib.Paragraph({ text: '' }));
-        }
-
-        const ptNo = row[ptNoIndex] !== undefined ? String(row[ptNoIndex]) : '';
-        const patientName = row[patientNameIndex] !== undefined ? String(row[patientNameIndex]) : '';
-        const visitDate = row[visitDateIndex] !== undefined ? formatDate(row[visitDateIndex]) : '';
-        const doctor = row[doctorIndex] !== undefined ? String(row[doctorIndex]).trim() : '';
-        const personalReminders = row[personalRemindersIndex] !== undefined ? String(row[personalRemindersIndex]).trim() : '';
-
-        // Highlight colour: yellow for "LAST VISIT …", green for "NEW PATIENT …"
-        let reminderHighlight = null;
-        const remUpper = personalReminders.toUpperCase();
-        if (remUpper.startsWith('NEW PATIENT')) {
-            reminderHighlight = 'green';
-        } else if (remUpper.startsWith('LAST VISIT')) {
-            reminderHighlight = 'yellow';
-        }
-
-        const tableRows = [];
-
-        // Row 0 – Personal Reminders (left cell empty, right cell = reminders text)
-        tableRows.push(new docxLib.TableRow({
-            children: [
-                makeCell([], 2405),
-                makeCell(personalReminders ? [makeRun(personalReminders, reminderHighlight)] : [], 5670)
-            ]
-        }));
-
-        // Row 1 – Date
-        tableRows.push(new docxLib.TableRow({
-            children: [
-                makeCell([makeRun('Date:')], 2405),
-                makeCell([makeRun(visitDate)], 5670)
-            ]
-        }));
-
-        // Row 2 – File Number
-        tableRows.push(new docxLib.TableRow({
-            children: [
-                makeCell([makeRun('File Number:')], 2405),
-                makeCell([makeRun(ptNo)], 5670)
-            ]
-        }));
-
-        // Row 3 – Patient name
-        tableRows.push(new docxLib.TableRow({
-            children: [
-                makeCell([makeRun('Patient name:')], 2405),
-                makeCell([makeRun(patientName)], 5670)
-            ]
-        }));
-
-        // Row 4 – Doctor Name (omit row when empty, matching the reference format)
-        if (doctor) {
-            tableRows.push(new docxLib.TableRow({
-                children: [
-                    makeCell([makeRun('Doctor Name:')], 2405),
-                    makeCell([makeRun(doctor)], 5670)
-                ]
-            }));
-        }
-
-        children.push(new docxLib.Table({
-            rows: tableRows,
-            width: { size: 8075, type: 'dxa' },
-            borders: tableBorders
-        }));
-    });
-
-    return children;
 }
 
 // Show status message
