@@ -1,7 +1,4 @@
-const EXAMPLE_OUTPUT_PATH = 'Resources/REPORT FOR OPG (EXAMPLE OUTPUT).docx';
-const EXAMPLE_OUTPUT_FILENAME = 'REPORT FOR OPG (EXAMPLE OUTPUT).docx';
-
-// Example page logic
+// OPG Report page logic
 const EXAMPLE_DATA = [
     ['PT NO.', 'Patient Name', 'Visit Date', 'Doctor', 'Personal Reminders'],
     ['TVIP00384762', 'Rauda hasan ismail yousef alblooshi', 46212, 'Dr. ALTAYEB Saeed Taher Abu Asbeh', 'LAST VISIT DEC. 11, 2025'],
@@ -19,9 +16,9 @@ const EXAMPLE_DATA = [
 ];
 
 function initExample() {
-    document.getElementById('exampleDownloadBtn').addEventListener('click', downloadExactExampleOutput);
+    document.getElementById('exampleDownloadBtn').addEventListener('click', downloadOPGReport);
     displayExampleDataPreview(EXAMPLE_DATA);
-    renderExactExampleOutputPreview();
+    renderOPGReportPreview(EXAMPLE_DATA);
 }
 
 function displayExampleDataPreview(data) {
@@ -52,34 +49,172 @@ function displayExampleDataPreview(data) {
     container.innerHTML = html;
 }
 
-function renderExactExampleOutputPreview() {
-    const preview = document.getElementById('exampleOutputPreview');
-    preview.innerHTML = `
-        <div class="document-preview">
-            <h3 class="mb-3">Exact sample output</h3>
-            <p class="mb-2">This page now returns the provided example Word document directly.</p>
-            <p class="mb-2"><strong>Output file:</strong> ${escapeHtml(EXAMPLE_OUTPUT_FILENAME)}</p>
-            <p class="mb-0 text-muted">Download the file below to see the exact table layout and formatting from the sample output in <code>Resources</code>.</p>
-        </div>
-    `;
+function renderOPGReportPreview(data) {
+    const container = document.getElementById('exampleOutputPreview');
+    if (!data || data.length <= 1) {
+        container.innerHTML = '<p>No data.</p>';
+        return;
+    }
+
+    const headers = data[0] || [];
+    const rows = data.slice(1);
+    const ptNoIdx = headers.findIndex(h => String(h).toLowerCase().includes('pt no'));
+    const nameIdx = headers.findIndex(h => String(h).toLowerCase().includes('patient name'));
+    const drIdx = headers.findIndex(h => String(h).toLowerCase().includes('doctor'));
+    const remindersIdx = headers.findIndex(h => String(h).toLowerCase().includes('personal reminders'));
+    const dateIdx = headers.findIndex(h => String(h).toLowerCase().includes('visit date'));
+
+    const visitDate = rows[0] && rows[0][dateIdx] !== undefined
+        ? formatDate(rows[0][dateIdx]).toUpperCase()
+        : '';
+
+    let html = '<div class="document-preview">';
+    html += '<h3 class="mb-2">REPORT FOR OPG</h3>';
+    if (visitDate) {
+        html += `<p class="mb-3"><strong>Date:</strong> ${escapeHtml(visitDate)}</p>`;
+    }
+
+    html += '<table><thead><tr>';
+    html += '<th>File #</th><th>Pt. Name -</th><th>Dr.</th>';
+    html += '</tr></thead><tbody>';
+
+    rows.forEach(row => {
+        const fileNo = String(row[ptNoIdx] !== undefined ? row[ptNoIdx] : '');
+        const name = String(row[nameIdx] !== undefined ? row[nameIdx] : '');
+        const reminders = String(row[remindersIdx] !== undefined ? row[remindersIdx] : '');
+        const ptNameCell = reminders ? `${name} - ${reminders}` : name;
+        const dr = String(row[drIdx] !== undefined ? row[drIdx] : '');
+
+        html += '<tr>';
+        html += `<td>${escapeHtml(fileNo)}</td>`;
+        html += `<td>${escapeHtml(ptNameCell)}</td>`;
+        html += `<td>${escapeHtml(dr)}</td>`;
+        html += '</tr>';
+    });
+
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
 }
 
-function downloadExactExampleOutput() {
+async function downloadOPGReport() {
     try {
-        showExampleStatus('Downloading exact example output...', 'info');
+        showExampleStatus('Generating OPG Report...', 'info');
 
-        const link = document.createElement('a');
-        link.href = encodeURI(EXAMPLE_OUTPUT_PATH);
-        link.download = EXAMPLE_OUTPUT_FILENAME;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        let lib = (typeof docxLib !== 'undefined' && docxLib) || window.docx;
+        if (!lib && typeof docx !== 'undefined') {
+            lib = docx;
+        }
+        if (!lib) {
+            throw new Error('docx library not loaded. Please refresh the page and try again.');
+        }
 
-        showExampleStatus('Exact example output downloaded.', 'success');
+        const children = generateOPGReportContent(EXAMPLE_DATA, lib);
+        const doc = new lib.Document({
+            sections: [{ properties: {}, children }]
+        });
+
+        const blob = await lib.Packer.toBlob(doc);
+
+        const headers = EXAMPLE_DATA[0];
+        const dateIdx = headers.findIndex(h => String(h).toLowerCase().includes('visit date'));
+        const dateVal = EXAMPLE_DATA[1] && EXAMPLE_DATA[1][dateIdx];
+        const dateStr = dateVal !== undefined ? formatDate(dateVal).toUpperCase() : 'OPG';
+
+        saveAs(blob, `REPORT FOR OPG - ${dateStr}.docx`);
+        showExampleStatus('OPG Report downloaded.', 'success');
     } catch (error) {
-        showExampleStatus('Error downloading example output: ' + error.message, 'error');
+        showExampleStatus('Error generating OPG Report: ' + error.message, 'error');
         console.error(error);
     }
+}
+
+function generateOPGReportContent(data, lib) {
+    const headers = data[0] || [];
+    const rows = data.slice(1);
+
+    const ptNoIdx = headers.findIndex(h => String(h).toLowerCase().includes('pt no'));
+    const nameIdx = headers.findIndex(h => String(h).toLowerCase().includes('patient name'));
+    const drIdx = headers.findIndex(h => String(h).toLowerCase().includes('doctor'));
+    const remindersIdx = headers.findIndex(h => String(h).toLowerCase().includes('personal reminders'));
+    const dateIdx = headers.findIndex(h => String(h).toLowerCase().includes('visit date'));
+
+    const font = 'Arial';
+    const sz = 24; // 12pt (half-points)
+
+    const makeRun = (text, bold) => new lib.TextRun({
+        text: String(text || ''),
+        font,
+        size: sz,
+        bold: !!bold,
+        color: '000000'
+    });
+
+    const makeCell = (text, bold, fill) => {
+        const cellOpts = {
+            children: [new lib.Paragraph({ children: [makeRun(text, bold)] })],
+            margins: { top: 80, bottom: 80, left: 120, right: 120 }
+        };
+        if (fill) {
+            cellOpts.shading = { fill, type: 'solid', color: 'auto' };
+        }
+        return new lib.TableCell(cellOpts);
+    };
+
+    const children = [];
+
+    // Title
+    children.push(new lib.Paragraph({
+        children: [makeRun('REPORT FOR OPG', true)],
+        spacing: { after: 200 }
+    }));
+
+    // Date line
+    const visitDate = rows[0] && rows[0][dateIdx] !== undefined
+        ? formatDate(rows[0][dateIdx]).toUpperCase()
+        : '';
+    if (visitDate) {
+        children.push(new lib.Paragraph({
+            children: [makeRun(`Date: ${visitDate}`, false)],
+            spacing: { after: 300 }
+        }));
+    }
+
+    // Table rows
+    const tableRows = [];
+
+    // Header row (shaded)
+    tableRows.push(new lib.TableRow({
+        children: [
+            makeCell('File #  ', true, 'D0D0D0'),
+            makeCell('Pt. Name - ', true, 'D0D0D0'),
+            makeCell('Dr. ', true, 'D0D0D0'),
+        ]
+    }));
+
+    // Data rows
+    rows.forEach(row => {
+        const fileNo = String(row[ptNoIdx] !== undefined ? row[ptNoIdx] : '');
+        const name = String(row[nameIdx] !== undefined ? row[nameIdx] : '');
+        const reminders = String(row[remindersIdx] !== undefined ? row[remindersIdx] : '');
+        const ptNameCell = reminders ? `${name} - ${reminders}` : name;
+        const dr = String(row[drIdx] !== undefined ? row[drIdx] : '');
+
+        tableRows.push(new lib.TableRow({
+            children: [
+                makeCell(fileNo, false, null),
+                makeCell(ptNameCell, false, null),
+                makeCell(dr, false, null),
+            ]
+        }));
+    });
+
+    children.push(new lib.Table({
+        rows: tableRows,
+        columnWidths: [2117, 5386, 2413],
+        width: { size: 9916, type: 'dxa' }
+    }));
+
+    return children;
 }
 
 function showExampleStatus(message, type) {
