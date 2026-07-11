@@ -169,6 +169,17 @@ header .lead {
     color: #2c3e50;
 }
 
+.text-preview {
+    max-height: 500px;
+    overflow-y: auto;
+    background: #ffffff;
+    font-family: 'Consolas', 'Menlo', monospace;
+    line-height: 1.5;
+    min-height: 300px;
+    color: #2c3e50;
+    white-space: pre-wrap;
+}
+
 .word-preview:focus {
     outline: 2px solid #3498db;
     outline-offset: 2px;
@@ -234,6 +245,13 @@ header .lead {
 }
 
 .btn-outline-primary:hover {
+    color: white;
+    background: #3498db;
+    border-color: #3498db;
+}
+
+.btn-outline-primary.active,
+.btn-outline-primary:active {
     color: white;
     background: #3498db;
     border-color: #3498db;

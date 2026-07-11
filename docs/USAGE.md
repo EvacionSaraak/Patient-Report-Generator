@@ -23,9 +23,14 @@ The Patient Report Generator is a web-based tool that converts Excel spreadsheet
   - Data presented in a formatted table
   - Proper styling and formatting
 
+### 📝 Text Report Generation
+- Creates lightweight plain-text report files
+- Uses the same patient fields shown in the Word report
+- Useful for quick sharing or archiving
+
 ### 💾 Download
 - One-click download
-- File saved as `patient-report.docx`
+- Choose between `.docx` and `.txt`
 - Compatible with Microsoft Word and Google Docs
 
 ## How to Use
@@ -43,9 +48,12 @@ The Patient Report Generator is a web-based tool that converts Excel spreadsheet
    - Check the preview table
    - Ensure your data looks correct
 
-4. **Generate Word Document**
-   - Click "Download Word Report"
-   - The Word file will download automatically
+4. **Select Report Format**
+   - Use the **Word (.docx)** and **Text (.txt)** tabs in the report preview panel
+
+5. **Download Report**
+   - Click the format-specific download button
+   - The selected file type downloads automatically
 
 ## Expected XLSX Format
 

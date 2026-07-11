@@ -3,16 +3,23 @@ let workbookData = null;
 let parsedData = null;
 let previewContent = null; // Store preview content for editing
 let docxLib = null; // Store docx library reference
+let selectedDownloadFormat = 'docx';
 
 // DOM elements
 const fileInput = document.getElementById('fileInput');
 const fileName = document.getElementById('fileName');
 const downloadBtn = document.getElementById('downloadBtn');
+const downloadBtnText = document.getElementById('downloadBtnText');
 const statusDiv = document.getElementById('status');
 const previewSection = document.getElementById('previewSection');
 const dataPreview = document.getElementById('dataPreview');
-const wordPreviewSection = document.getElementById('wordPreviewSection');
+const reportPreviewSection = document.getElementById('reportPreviewSection');
 const wordPreview = document.getElementById('wordPreview');
+const textPreview = document.getElementById('textPreview');
+const wordPreviewPanel = document.getElementById('wordPreviewPanel');
+const textPreviewPanel = document.getElementById('textPreviewPanel');
+const wordTabBtn = document.getElementById('wordTabBtn');
+const textTabBtn = document.getElementById('textTabBtn');
 const refreshPreviewBtn = document.getElementById('refreshPreviewBtn');
 
 // Wait for libraries to load
@@ -35,8 +42,11 @@ window.addEventListener('load', function() {
 
 // Event listeners
 fileInput.addEventListener('change', handleFileSelect);
-downloadBtn.addEventListener('click', generateWordDocument);
+downloadBtn.addEventListener('click', generateReport);
 refreshPreviewBtn.addEventListener('click', refreshWordPreview);
+wordTabBtn.addEventListener('click', () => setDownloadFormat('docx'));
+textTabBtn.addEventListener('click', () => setDownloadFormat('txt'));
+setDownloadFormat('docx');
 
 // Handle file selection
 function handleFileSelect(event) {
@@ -95,8 +105,10 @@ function parseWorkbook(workbook) {
         // Display preview
         displayPreview(parsedData);
         
-        // Generate and display Word preview
+        // Generate and display report previews
         generateWordPreview(parsedData);
+        generateTextPreview(parsedData);
+        reportPreviewSection.style.display = 'block';
     } catch (error) {
         showStatus('Error parsing workbook: ' + error.message, 'error');
     }
@@ -145,7 +157,6 @@ function displayPreview(data) {
 function generateWordPreview(data) {
     if (!data || data.length === 0) {
         wordPreview.innerHTML = '<p class="text-muted">No data to preview.</p>';
-        wordPreviewSection.style.display = 'block';
         return;
     }
 
@@ -203,15 +214,83 @@ function generateWordPreview(data) {
     html += '</div>';
     
     wordPreview.innerHTML = html;
-    wordPreviewSection.style.display = 'block';
+}
+
+// Generate text report preview
+function generateTextPreview(data) {
+    if (!data || data.length === 0) {
+        textPreview.textContent = 'No data to preview.';
+        return;
+    }
+
+    const headers = data[0] || [];
+    const rows = filterEmptyRows(data.slice(1));
+
+    const ptNoIndex = headers.findIndex(h => String(h).toLowerCase().includes('pt no'));
+    const patientNameIndex = headers.findIndex(h => String(h).toLowerCase().includes('patient name'));
+    const visitDateIndex = headers.findIndex(h => String(h).toLowerCase().includes('visit date'));
+    const doctorIndex = headers.findIndex(h => String(h).toLowerCase().includes('doctor'));
+    const personalRemindersIndex = headers.findIndex(h => String(h).toLowerCase().includes('personal reminders'));
+
+    const dateRange = getDateRange(data);
+    const headerText = dateRange.min && dateRange.max
+        ? `PATIENT REPORT | ${dateRange.min} - ${dateRange.max}`
+        : 'PATIENT REPORT';
+
+    const lines = [headerText, ''];
+
+    rows.forEach((row, index) => {
+        const ptNo = row[ptNoIndex] !== undefined ? String(row[ptNoIndex]) : '';
+        const patientName = row[patientNameIndex] !== undefined ? String(row[patientNameIndex]) : '';
+        const visitDate = row[visitDateIndex] !== undefined ? formatDate(row[visitDateIndex]) : '';
+        const doctor = row[doctorIndex] !== undefined ? String(row[doctorIndex]) : '';
+        const personalReminders = row[personalRemindersIndex] !== undefined ? row[personalRemindersIndex] : '';
+        const remarks = getRemarks(personalReminders);
+
+        lines.push(`Date: ${visitDate}`);
+        lines.push(` File Number: ${ptNo}`);
+        lines.push(` Patient Name: ${patientName}`);
+        lines.push(` Doctor Name: ${doctor}`);
+        if (remarks && remarks.trim()) {
+            lines.push(` Remarks: ${remarks}`);
+        }
+
+        if (index < rows.length - 1) {
+            lines.push('', '----------------------------------------', '');
+        }
+    });
+
+    textPreview.textContent = lines.join('\n');
 }
 
 // Refresh Word preview from current data
 function refreshWordPreview() {
     if (parsedData) {
         generateWordPreview(parsedData);
+        generateTextPreview(parsedData);
         showStatus('Preview refreshed!', 'success');
     }
+}
+
+// Set active download format
+function setDownloadFormat(format) {
+    selectedDownloadFormat = format;
+    const isWordFormat = format === 'docx';
+
+    wordTabBtn.classList.toggle('active', isWordFormat);
+    textTabBtn.classList.toggle('active', !isWordFormat);
+    wordPreviewPanel.style.display = isWordFormat ? 'block' : 'none';
+    textPreviewPanel.style.display = isWordFormat ? 'none' : 'block';
+    downloadBtnText.textContent = isWordFormat ? 'Download Word Report' : 'Download Text Report';
+}
+
+async function generateReport() {
+    if (selectedDownloadFormat === 'txt') {
+        generateTextDocument();
+        return;
+    }
+
+    await generateWordDocument();
 }
 
 // Generate Word document
@@ -267,6 +346,38 @@ async function generateWordDocument() {
         downloadBtn.disabled = false;
     } catch (error) {
         showStatus('Error generating document: ' + error.message, 'error');
+        console.error('Error details:', error);
+        downloadBtn.disabled = false;
+    }
+}
+
+// Generate text document
+function generateTextDocument() {
+    if (!parsedData || parsedData.length === 0) {
+        showStatus('No data to export.', 'error');
+        return;
+    }
+
+    try {
+        showStatus('Generating text document...', 'info');
+        downloadBtn.disabled = true;
+
+        const dateRange = getDateRange(parsedData);
+        let filename = 'PATIENT REPORT _ DATED ';
+        if (dateRange.min && dateRange.max) {
+            filename += `${dateRange.min} - ${dateRange.max}.txt`;
+        } else {
+            filename += 'Unknown.txt';
+        }
+
+        const content = textPreview.textContent || '';
+        const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+        saveAs(blob, filename);
+
+        showStatus('Text document generated successfully!', 'success');
+        downloadBtn.disabled = false;
+    } catch (error) {
+        showStatus('Error generating text document: ' + error.message, 'error');
         console.error('Error details:', error);
         downloadBtn.disabled = false;
     }

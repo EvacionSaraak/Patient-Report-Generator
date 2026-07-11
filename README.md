@@ -7,6 +7,8 @@ A tool to automate generation of patient reports because I'm lazy.
 - 📊 Upload XLSX/XLS files
 - 👁️ Preview data before export
 - 📄 Generate Word documents with one click
+- 📝 Generate plain text reports with one click
+- 🔁 Switch between Word and Text report tabs before download
 - 🌐 Works entirely in the browser (no server needed)
 - ✨ Clean, modern interface
 
@@ -15,11 +17,19 @@ A tool to automate generation of patient reports because I'm lazy.
 1. Open the [Patient Report Generator](https://evacionsaraak.github.io/Patient-Report-Generator/) on GitHub Pages
 2. Click "Choose XLSX File" to upload your Excel file
 3. Preview the data in the preview section
-4. Click "Download Word Report" to generate and download your Word document
+4. Select either the **Word (.docx)** or **Text (.txt)** tab
+5. Click the matching download button to save the report
 
 ## Local Development
 
 Simply open `index.html` in a web browser. No build process or server required.
+
+## Repository Structure
+
+- `css/` - Stylesheets
+- `js/` - JavaScript application logic
+- `assets/icons/` - Icon assets
+- `docs/` - Additional documentation
 
 ## Technologies Used
 
