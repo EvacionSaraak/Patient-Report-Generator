@@ -57,6 +57,7 @@ function displayExampleDataPreview(data) {
 
 function renderOPGReportPreview(data) {
     const container = document.getElementById('exampleOutputPreview');
+
     if (!data || data.length <= 1) {
         container.innerHTML = '<p>No data.</p>';
         return;
@@ -64,93 +65,295 @@ function renderOPGReportPreview(data) {
 
     const headers = data[0] || [];
     const rows = data.slice(1);
-    const ptNoIdx      = headers.findIndex(h => String(h).toLowerCase().includes('pt no'));
-    const nameIdx      = headers.findIndex(h => String(h).toLowerCase().includes('patient name'));
-    const drIdx        = headers.findIndex(h => String(h).toLowerCase().includes('doctor'));
-    const remindersIdx = headers.findIndex(h => String(h).toLowerCase().includes('personal reminders'));
 
-    // One "page" per row: 3-col info table + giant empty image placeholder
-    const pageStyle = 'border:2px solid #ccc;padding:12px;margin-bottom:16px;background:#fff;page-break-after:always;';
-    const tblStyle  = 'border-collapse:collapse;width:100%;font-family:Arial,sans-serif;font-weight:bold;font-size:11pt;';
-    const thStyle   = 'border:1px solid #000;padding:4px 8px;';
-    const imgStyle  = 'border:1px solid #000;width:100%;height:200px;box-sizing:border-box;';
+    const ptNoIdx = headers.findIndex(header =>
+        String(header).toLowerCase().includes('pt no')
+    );
 
-    let html = '<div class="document-preview">';
+    const nameIdx = headers.findIndex(header =>
+        String(header).toLowerCase().includes('patient name')
+    );
+
+    const drIdx = headers.findIndex(header =>
+        String(header).toLowerCase().includes('doctor')
+    );
+
+    const remindersIdx = headers.findIndex(header =>
+        String(header).toLowerCase().includes('personal reminders')
+    );
+
+    const pageStyle = [
+        'border:2px solid #ccc',
+        'padding:12px',
+        'margin-bottom:16px',
+        'background:#fff',
+        'page-break-after:always'
+    ].join(';');
+
+    const tableStyle = [
+        'border-collapse:collapse',
+        'width:100%',
+        'font-family:Arial,sans-serif',
+        'font-weight:bold',
+        'font-size:11pt'
+    ].join(';');
+
+    const cellStyle = [
+        'border:2px solid #000',
+        'padding:2px 8px',
+        'vertical-align:middle',
+        'white-space:nowrap'
+    ].join(';');
+
+    const imageAreaStyle = [
+        'border:1px solid #000',
+        'width:100%',
+        'height:420px',
+        'box-sizing:border-box',
+        'margin-top:16px'
+    ].join(';');
+
+    let html = '';
 
     rows.forEach(row => {
-        const fileNo    = String(row[ptNoIdx]      !== undefined ? row[ptNoIdx]      : '');
-        const name      = String(row[nameIdx]      !== undefined ? row[nameIdx]      : '');
-        const reminders = String(row[remindersIdx] !== undefined ? row[remindersIdx] : '');
-        const dr        = stripDrPrefix(String(row[drIdx] !== undefined ? row[drIdx] : ''));
-        const ptNameCell = reminders ? `${name} - ${reminders}` : name;
+        const fileNo = String(
+            row[ptNoIdx] !== undefined
+                ? row[ptNoIdx]
+                : ''
+        ).trim();
+
+        const name = String(
+            row[nameIdx] !== undefined
+                ? row[nameIdx]
+                : ''
+        ).trim();
+
+        const doctor = stripDrPrefix(
+            String(
+                row[drIdx] !== undefined
+                    ? row[drIdx]
+                    : ''
+            ).trim()
+        );
+
+        const reminder = String(
+            row[remindersIdx] !== undefined
+                ? row[remindersIdx]
+                : ''
+        ).trim();
+
+        const reminderUpper = reminder.toUpperCase();
+
+        let reminderBackground = 'transparent';
+
+        if (reminderUpper.includes('NEW PATIENT')) {
+            reminderBackground = '#00ff00';
+        } else if (reminderUpper.includes('LAST VISIT')) {
+            reminderBackground = '#ffff00';
+        }
 
         html += `<div style="${pageStyle}">`;
 
-        // 3-column info row
-        html += `<table style="${tblStyle}"><tbody><tr>`;
-        html += `<td style="${thStyle}width:22%;">File #&nbsp;&nbsp;${escapeHtml(fileNo)}</td>`;
-        html += `<td style="${thStyle}width:55%;">Pt. Name - ${escapeHtml(ptNameCell)}</td>`;
-        html += `<td style="${thStyle}width:23%;">Dr. ${escapeHtml(dr)}</td>`;
-        html += '</tr></tbody></table>';
+        html += `
+            <table style="${tableStyle}">
+                <colgroup>
+                    <col style="width:22%;">
+                    <col style="width:55%;">
+                    <col style="width:23%;">
+                </colgroup>
 
-        // Giant empty image-paste area
-        html += `<table style="${tblStyle}margin-top:6px;"><tbody><tr>`;
-        html += `<td style="${imgStyle}"></td>`;
-        html += '</tr></tbody></table>';
+                <tr>
+                    <td style="${cellStyle}">
+                        File #&nbsp;&nbsp;${escapeHtml(fileNo)}
+                    </td>
+
+                    <td style="${cellStyle}">
+                        Pt. Name -&nbsp;&nbsp;${escapeHtml(name)}
+                    </td>
+
+                    <td style="${cellStyle}">
+                        Dr. ${escapeHtml(doctor)}
+                    </td>
+                </tr>
+            </table>
+        `;
+
+        if (reminder) {
+            html += `
+                <div
+                    style="
+                        display:table;
+                        margin-top:2px;
+                        padding:0 2px;
+                        background:${reminderBackground};
+                        font-family:Arial,sans-serif;
+                        font-size:11pt;
+                        line-height:1.05;
+                        font-weight:bold;
+                    "
+                >
+                    ${escapeHtml(reminder)}
+                </div>
+            `;
+        }
+
+        html += `
+            <div style="${imageAreaStyle}"></div>
+        `;
 
         html += '</div>';
     });
 
-    html += '</div>';
     container.innerHTML = html;
 }
 
 async function downloadOPGReport() {
     try {
-        showExampleStatus('Generating OPG Report...', 'info');
+        showExampleStatus(
+            'Generating OPG Report...',
+            'info'
+        );
 
-        if (typeof PizZip === 'undefined' || typeof docxtemplater === 'undefined') {
-            throw new Error('Templating libraries not loaded. Please refresh the page.');
+        if (
+            typeof PizZip === 'undefined' ||
+            typeof docxtemplater === 'undefined'
+        ) {
+            throw new Error(
+                'Templating libraries not loaded. Please refresh the page.'
+            );
         }
+
         if (typeof OPG_REPORT_TEMPLATE_B64 === 'undefined') {
-            throw new Error('OPG report template not found. Please refresh the page.');
+            throw new Error(
+                'OPG report template not found. Please refresh the page.'
+            );
         }
 
-        const headers      = EXAMPLE_DATA[0];
-        const rows         = EXAMPLE_DATA.slice(1);
-        const ptNoIdx      = headers.findIndex(h => String(h).toLowerCase().includes('pt no'));
-        const nameIdx      = headers.findIndex(h => String(h).toLowerCase().includes('patient name'));
-        const drIdx        = headers.findIndex(h => String(h).toLowerCase().includes('doctor'));
-        const remindersIdx = headers.findIndex(h => String(h).toLowerCase().includes('personal reminders'));
-        const dateIdx      = headers.findIndex(h => String(h).toLowerCase().includes('visit date'));
+        const headers = EXAMPLE_DATA[0];
+        const rows = EXAMPLE_DATA.slice(1);
+
+        const ptNoIdx = headers.findIndex(header =>
+            String(header).toLowerCase().includes('pt no')
+        );
+
+        const nameIdx = headers.findIndex(header =>
+            String(header).toLowerCase().includes('patient name')
+        );
+
+        const drIdx = headers.findIndex(header =>
+            String(header).toLowerCase().includes('doctor')
+        );
+
+        const remindersIdx = headers.findIndex(header =>
+            String(header)
+                .toLowerCase()
+                .includes('personal reminders')
+        );
+
+        const dateIdx = headers.findIndex(header =>
+            String(header).toLowerCase().includes('visit date')
+        );
 
         const patients = rows.map(row => {
-            const name      = String(row[nameIdx]      !== undefined ? row[nameIdx]      : '');
-            const reminders = String(row[remindersIdx] !== undefined ? row[remindersIdx] : '').trim();
-            const pt_name   = reminders ? `${name} - ${reminders}` : name;
+            const reminder = String(
+                row[remindersIdx] !== undefined
+                    ? row[remindersIdx]
+                    : ''
+            ).trim();
+
+            const reminderUpper = reminder.toUpperCase();
+
             return {
-                file_no: String(row[ptNoIdx] !== undefined ? row[ptNoIdx] : ''),
-                pt_name,
-                dr: stripDrPrefix(String(row[drIdx] !== undefined ? row[drIdx] : '').trim()),
+                file_no: String(
+                    row[ptNoIdx] !== undefined
+                        ? row[ptNoIdx]
+                        : ''
+                ).trim(),
+
+                pt_name: String(
+                    row[nameIdx] !== undefined
+                        ? row[nameIdx]
+                        : ''
+                ).trim(),
+
+                dr: stripDrPrefix(
+                    String(
+                        row[drIdx] !== undefined
+                            ? row[drIdx]
+                            : ''
+                    ).trim()
+                ),
+
+                new_patient: reminderUpper.includes('NEW PATIENT')
+                    ? reminder
+                    : '',
+
+                last_visit: reminderUpper.includes('LAST VISIT')
+                    ? reminder
+                    : '',
+
+                reminder
             };
         });
 
-        const zip = new PizZip(OPG_REPORT_TEMPLATE_B64, { base64: true });
-        const doc = new docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
-        doc.render({ patients });
+        const zip = new PizZip(
+            OPG_REPORT_TEMPLATE_B64,
+            {
+                base64: true
+            }
+        );
 
-        const dateVal = rows[0] && rows[0][dateIdx] !== undefined ? rows[0][dateIdx] : null;
-        const dateStr = dateVal !== null ? formatDate(dateVal).toUpperCase() : 'OPG';
-        const filename = `REPORT FOR OPG - ${dateStr}.docx`;
+        const doc = new docxtemplater(
+            zip,
+            {
+                paragraphLoop: true,
+                linebreaks: true
+            }
+        );
 
-        const blob = doc.getZip().generate({
-            type: 'blob',
-            mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        doc.render({
+            patients
         });
-        saveAs(blob, filename);
-        showExampleStatus('OPG Report downloaded.', 'success');
+
+        const dateValue =
+            rows[0] &&
+            rows[0][dateIdx] !== undefined
+                ? rows[0][dateIdx]
+                : null;
+
+        const dateString =
+            dateValue !== null
+                ? formatDate(dateValue).toUpperCase()
+                : 'OPG';
+
+        const filename =
+            `REPORT FOR OPG - ${dateString}.docx`;
+
+        const blob = doc
+            .getZip()
+            .generate({
+                type: 'blob',
+                mimeType:
+                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            });
+
+        saveAs(
+            blob,
+            filename
+        );
+
+        showExampleStatus(
+            'OPG Report downloaded.',
+            'success'
+        );
+
     } catch (error) {
-        showExampleStatus('Error generating OPG Report: ' + error.message, 'error');
+        showExampleStatus(
+            'Error generating OPG Report: ' +
+            error.message,
+            'error'
+        );
+
         console.error(error);
     }
 }
