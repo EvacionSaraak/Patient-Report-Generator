@@ -8,9 +8,10 @@ async function generateReport() {
     await generateWordDocument();
 }
 
-// Generate Word document using docxtemplater and the patient_report_template.docx
+// Generate Word document using docxtemplater and the patient_report_template.docx.
+// Consumes canonical records from parsedData (set by parseNormalSheet).
 async function generateWordDocument() {
-    if (!parsedData || parsedData.length === 0) {
+    if (!parsedData || !parsedData.records || parsedData.records.length === 0) {
         showStatus('No data to export.', 'error');
         return;
     }
@@ -26,24 +27,14 @@ async function generateWordDocument() {
             throw new Error('Report template not found. Please refresh the page.');
         }
 
-        const headers = parsedData[0] || [];
-        const rows = filterEmptyRows(parsedData.slice(1));
-
-        const ptNoIdx      = headers.findIndex(h => String(h).toLowerCase().includes('pt no'));
-        const nameIdx      = headers.findIndex(h => String(h).toLowerCase().includes('patient name'));
-        const dateIdx      = headers.findIndex(h => String(h).toLowerCase().includes('visit date'));
-        const drIdx        = headers.findIndex(h => String(h).toLowerCase().includes('doctor'));
-        const remindersIdx = headers.findIndex(h => String(h).toLowerCase().includes('personal reminders'));
-
-        const patients = rows.map(row => {
-            const reminder = remindersIdx >= 0 && row[remindersIdx] !== undefined
-                ? String(row[remindersIdx]).trim() : '';
+        const patients = parsedData.records.map(record => {
+            const reminder = record.personalReminders;
             const remUpper = reminder.toUpperCase();
             return {
-                file_no:    ptNoIdx  >= 0 && row[ptNoIdx]  !== undefined ? String(row[ptNoIdx])  : '',
-                pt_name:    nameIdx  >= 0 && row[nameIdx]  !== undefined ? String(row[nameIdx])  : '',
-                visit_date: dateIdx  >= 0 && row[dateIdx]  !== undefined ? formatDate(row[dateIdx]) : '',
-                dr:         drIdx    >= 0 && row[drIdx]    !== undefined ? String(row[drIdx]).trim() : '',
+                file_no:    record.fileNumber,
+                pt_name:    record.patientName,
+                visit_date: formatDate(record.visitDate),
+                dr:         record.doctor,
                 reminder,
                 is_yellow: remUpper.startsWith('LAST VISIT'),
                 is_green:  remUpper.startsWith('NEW PATIENT'),
@@ -54,7 +45,7 @@ async function generateWordDocument() {
         const doc = new docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
         doc.render({ patients });
 
-        const dateRange = getDateRange(parsedData);
+        const dateRange = getDateRange(parsedData.records);
         let filename = 'PATIENT REPORT DATED ';
         filename += dateRange.min ? dateRange.min : 'Unknown';
         filename += '.docx';
@@ -74,9 +65,9 @@ async function generateWordDocument() {
     }
 }
 
-// Generate plain-text document from the current text preview content
+// Generate plain-text document from the current text preview content.
 function generateTextDocument() {
-    if (!parsedData || parsedData.length === 0) {
+    if (!parsedData || !parsedData.records || parsedData.records.length === 0) {
         showStatus('No data to export.', 'error');
         return;
     }
@@ -85,7 +76,7 @@ function generateTextDocument() {
         showStatus('Generating text document...', 'info');
         downloadBtn.disabled = true;
 
-        const dateRange = getDateRange(parsedData);
+        const dateRange = getDateRange(parsedData.records);
         let filename = 'PATIENT REPORT _ DATED ';
         if (dateRange.min && dateRange.max) {
             filename += `${dateRange.min} - ${dateRange.max}.txt`;

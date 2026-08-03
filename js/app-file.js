@@ -39,15 +39,30 @@ function handleFileSelect(event) {
     reader.readAsArrayBuffer(file);
 }
 
-// Parse workbook and extract data for preview and report generation
+// Parse workbook into a canonical result and set up all previews.
+// parsedData is set to the canonical object returned by parseNormalSheet:
+//   { format, headerRowIndex, columns, records, rawRows }
 function parseWorkbook(workbook) {
     try {
         const firstSheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[firstSheetName];
 
-        parsedData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        const rawRows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
 
-        displayPreview(parsedData);
+        // Normal format is tested first; it returns null when not detected.
+        const canonical = parseNormalSheet(rawRows);
+        if (!canonical) {
+            throw new Error(
+                'Could not detect a supported report format in this workbook. ' +
+                'Ensure the file contains headers such as PT ID., Patient Name, and Visit Date.'
+            );
+        }
+
+        parsedData = canonical;
+
+        // Pass the sheet slice starting at the header row so that displayPreview
+        // receives headers in row 0 (the only place data[0] / data.slice(1) is used).
+        displayPreview(rawRows.slice(canonical.headerRowIndex));
 
         generateWordPreview(parsedData);
         generateTextPreview(parsedData);

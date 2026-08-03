@@ -76,19 +76,14 @@ function formatHeaderDate(dateValue) {
     return `${month} ${day}`;
 }
 
-// Helper function to get min and max dates from data
-function getDateRange(data) {
-    if (!data || data.length <= 1) return { min: '', max: '' };
+// Helper function to get min and max dates from canonical records.
+// Accepts the records array from parseNormalSheet's result.
+function getDateRange(records) {
+    if (!records || records.length === 0) return { min: '', max: '' };
 
-    const headers = data[0] || [];
-    const rows = data.slice(1);
-    const visitDateIndex = headers.findIndex(h => String(h).toLowerCase().includes('visit date'));
-
-    if (visitDateIndex === -1) return { min: '', max: '' };
-
-    const dates = rows
-        .map(row => row[visitDateIndex])
-        .filter(date => date !== undefined && date !== null && date !== '');
+    const dates = records
+        .map(r => r.visitDate)
+        .filter(d => d != null && d !== '');
 
     if (dates.length === 0) return { min: '', max: '' };
 
