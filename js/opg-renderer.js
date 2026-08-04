@@ -32,6 +32,11 @@ function renderOPGDataPreview(records) {
         </table>`;
 }
 
+// Strip a leading "Dr." or "Dr " prefix (case-insensitive) so we never output "Dr. Dr. …"
+function opgNormaliseDoctorName(name) {
+    return String(name || '').trim().replace(/^dr\.?\s*/i, '');
+}
+
 // Render the OPG report card preview (right panel) – shows the exact OPG structure
 function renderOPGReportPreview(records, reportDate) {
     const container = document.getElementById('exampleOutputPreview');
@@ -47,9 +52,10 @@ function renderOPGReportPreview(records, reportDate) {
         `<div class="opg-document-preview">
             ${dateLabel ? `<p class="fw-bold mb-3">${dateLabel}</p>` : ''}
             ${records.map(rec => {
-                const ptCell = rec.personalReminders
-                    ? `Pt. Name&nbsp;&#8211;&nbsp;${opgEscapeHtml(rec.patientName)} &#8211; ${opgEscapeHtml(rec.personalReminders)}`
-                    : `Pt. Name&nbsp;&#8211;&nbsp;${opgEscapeHtml(rec.patientName)}`;
+                const reminder = (rec.personalReminders || '').trim();
+                const reminderHtml = reminder
+                    ? `<p class="opg-reminder-para">${opgEscapeHtml(reminder)}</p>`
+                    : `<p class="opg-reminder-para opg-reminder-empty">&nbsp;</p>`;
 
                 return `<section class="opg-preview-record">
                     <table class="opg-info-table">
@@ -60,11 +66,11 @@ function renderOPGReportPreview(records, reportDate) {
                         </colgroup>
                         <tr>
                             <td>File&nbsp;#&nbsp;&nbsp;${opgEscapeHtml(rec.fileNumber)}</td>
-                            <td>${ptCell}</td>
-                            <td>Dr.&nbsp;${opgEscapeHtml(rec.doctorName)}</td>
+                            <td>Pt.&nbsp;Name&nbsp;&#8211;&nbsp;${opgEscapeHtml(rec.patientName)}</td>
+                            <td>Dr.&nbsp;${opgEscapeHtml(opgNormaliseDoctorName(rec.doctorName))}</td>
                         </tr>
                     </table>
-                    <div class="opg-reminder-line">&nbsp;</div>
+                    ${reminderHtml}
                     <div class="opg-empty-image-area"></div>
                 </section>`;
             }).join('')}

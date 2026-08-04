@@ -18,13 +18,9 @@ function loadOPGDocxModule() {
     return opgDocxModulePromise;
 }
 
-// ─── Build patient-name cell content ─────────────────────────────────────────
-// Appends " - reminder" when reminder is non-empty; no trailing hyphen.
-function opgBuildPtNameText(patientName, personalReminders) {
-    const reminder = (personalReminders || '').trim();
-    return reminder
-        ? `Pt. Name - ${patientName} - ${reminder}`
-        : `Pt. Name - ${patientName}`;
+// ─── Strip leading "Dr." so we never emit "Dr. Dr. …" ─────────────────────────
+function opgNormaliseDoctorName(name) {
+    return String(name || '').trim().replace(/^dr\.?\s*/i, '');
 }
 
 // ─── Generate and download the OPG Word report ───────────────────────────────
@@ -91,11 +87,20 @@ async function downloadOPGReport() {
                 height:    { value: OPG_ROW_H, rule: HeightRule.AUTO },
                 children:  [
                     makeCell(`File #  ${record.fileNumber}`, 0),
-                    makeCell(opgBuildPtNameText(record.patientName, record.personalReminders), 1),
-                    makeCell(`Dr. ${record.doctorName || ''}`, 2)
+                    makeCell(`Pt. Name - ${record.patientName}`, 1),
+                    makeCell(`Dr. ${opgNormaliseDoctorName(record.doctorName)}`, 2)
                 ]
             })]
         });
+
+        // ── Build the borderless personal-reminders paragraph ─────────────────
+        const makeReminderPara = record => {
+            const reminder = (record.personalReminders || '').trim();
+            return new Paragraph({
+                spacing: { before: 0, after: 0, line: 240 },
+                children: reminder ? [run(reminder)] : []
+            });
+        };
 
         // ── Build the empty X-ray image placeholder table ─────────────────────
         const makeImageTable = () => new Table({
@@ -125,7 +130,7 @@ async function downloadOPGReport() {
         const children = [];
 
         opgRecords.forEach(record => {
-            children.push(makeInfoTable(record), blankPara(), makeImageTable(), blankPara(), blankPara());
+            children.push(makeInfoTable(record), makeReminderPara(record), makeImageTable(), blankPara(), blankPara());
         });
 
         const document = new Document({
