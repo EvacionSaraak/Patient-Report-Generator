@@ -613,7 +613,7 @@ OPG Report
 </h1>
 
 <p class="lead mb-1">
-Upload a claim XLSX/XLS file to generate an OPG report
+Upload a patient-report DOCX file to generate an OPG report
 </p>
 
 </header>
@@ -633,7 +633,7 @@ Upload a claim XLSX/XLS file to generate an OPG report
 <input
 type="file"
 id="opgFileInput"
-accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 class="file-input"
 >
 
@@ -672,7 +672,7 @@ y2="15"
 </svg>
 
 <span class="label-text">
-Choose Claim XLSX/XLS File
+Choose DOCX Patient Report
 </span>
 
 </label>
@@ -698,7 +698,7 @@ class="opg-warning"
 <div class="card-header">
 
 <h2 class="h5 mb-0">
-Accepted Claim Rows
+Parsed Patient Records
 </h2>
 
 </div>
@@ -820,6 +820,8 @@ class="status-message mt-2"
 
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+
 <script src="https://cdn.jsdelivr.net/npm/docx@7.8.2/build/index.js"></script>
 
 <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
@@ -841,6 +843,7 @@ class="status-message mt-2"
 
 <!-- OPG Report modules -->
 <script src="js/opg-utils.js"></script>
+<script src="js/opg-docx-parser.js"></script>
 <script src="js/opg-parser.js"></script>
 <script src="js/opg-renderer.js"></script>
 <script src="js/opg-download.js"></script>

@@ -1,32 +1,9 @@
-// Render warning alerts for rows skipped due to missing data
-function renderOPGWarnings(rows) {
-    const container = document.getElementById('opgWarning');
-
-    if (!rows.length) {
-        container.innerHTML = '';
-        return;
-    }
-
-    const items = rows.map(row =>
-        `<li>
-            <strong>${opgEscapeHtml(row.claimId || `Row ${row.rowNumber} (Claim ID missing)`)}</strong>
-            — Missing: ${opgEscapeHtml(row.missing.join(', '))}
-        </li>`
-    ).join('');
-
-    container.innerHTML =
-        `<div class="alert alert-warning mb-0">
-            <strong>${rows.length} row${rows.length === 1 ? '' : 's'} ignored due to missing data:</strong>
-            <ul class="mb-0 mt-2">${items}</ul>
-        </div>`;
-}
-
-// Render the accepted claim rows as a summary table
-function renderOPGDataPreview(rows) {
+// Render the parsed patient records as a summary table (left panel)
+function renderOPGDataPreview(records) {
     const container = document.getElementById('exampleDataPreview');
 
-    if (!rows.length) {
-        container.innerHTML = '<p class="text-muted mb-0">No complete rows were accepted.</p>';
+    if (!records || !records.length) {
+        container.innerHTML = '<p class="text-muted mb-0">No records were accepted.</p>';
         return;
     }
 
@@ -34,57 +11,62 @@ function renderOPGDataPreview(rows) {
         `<table>
             <thead>
                 <tr>
-                    <th>Claim ID</th>
-                    <th>File #</th>
-                    <th>Patient</th>
-                    <th>Performing Clinician</th>
+                    <th>File Number</th>
+                    <th>Patient Name</th>
                     <th>Date</th>
-                    <th>Last Modified By</th>
+                    <th>Doctor</th>
+                    <th>Personal Reminders</th>
                 </tr>
             </thead>
             <tbody>
-                ${rows.map(row =>
+                ${records.map(rec =>
                     `<tr>
-                        <td>${opgEscapeHtml(row.claimId)}</td>
-                        <td>${opgEscapeHtml(row.fileNumber)}</td>
-                        <td>${opgEscapeHtml(row.patientName)}</td>
-                        <td>${opgEscapeHtml(row.doctor)}</td>
-                        <td>${opgEscapeHtml(row.date)}</td>
-                        <td>${opgEscapeHtml(row.lastModifiedBy)}</td>
+                        <td>${opgEscapeHtml(rec.fileNumber)}</td>
+                        <td>${opgEscapeHtml(rec.patientName)}</td>
+                        <td>${opgEscapeHtml(rec.date)}</td>
+                        <td>${opgEscapeHtml(rec.doctorName)}</td>
+                        <td>${opgEscapeHtml(rec.personalReminders)}</td>
                     </tr>`
                 ).join('')}
             </tbody>
         </table>`;
 }
 
-// Render the OPG report card preview for each accepted row
-function renderOPGReportPreview(rows) {
+// Render the OPG report card preview (right panel) – shows the exact OPG structure
+function renderOPGReportPreview(records, reportDate) {
     const container = document.getElementById('exampleOutputPreview');
 
-    if (!rows.length) {
+    if (!records || !records.length) {
         container.innerHTML = '<p class="text-muted mb-0">No OPG preview is available.</p>';
         return;
     }
 
+    const dateLabel = reportDate ? `Date: ${opgEscapeHtml(reportDate)}` : '';
+
     container.innerHTML =
         `<div class="opg-document-preview">
-            ${rows.map(row =>
-                `<section class="opg-preview-record">
+            ${dateLabel ? `<p class="fw-bold mb-3">${dateLabel}</p>` : ''}
+            ${records.map(rec => {
+                const ptCell = rec.personalReminders
+                    ? `Pt. Name&nbsp;&#8211;&nbsp;${opgEscapeHtml(rec.patientName)} &#8211; ${opgEscapeHtml(rec.personalReminders)}`
+                    : `Pt. Name&nbsp;&#8211;&nbsp;${opgEscapeHtml(rec.patientName)}`;
+
+                return `<section class="opg-preview-record">
                     <table class="opg-info-table">
                         <colgroup>
-                            <col style="width:22%">
-                            <col style="width:55%">
-                            <col style="width:23%">
+                            <col style="width:${(2117/9913*100).toFixed(2)}%">
+                            <col style="width:${(5386/9913*100).toFixed(2)}%">
+                            <col style="width:${(2410/9913*100).toFixed(2)}%">
                         </colgroup>
                         <tr>
-                            <td>File #&nbsp;&nbsp;${opgEscapeHtml(row.fileNumber)}</td>
-                            <td>Pt. Name -&nbsp;&nbsp;${opgEscapeHtml(row.patientName)}</td>
-                            <td>Dr. ${opgEscapeHtml(row.doctor)}</td>
+                            <td>File&nbsp;#&nbsp;&nbsp;${opgEscapeHtml(rec.fileNumber)}</td>
+                            <td>${ptCell}</td>
+                            <td>Dr.&nbsp;${opgEscapeHtml(rec.doctorName)}</td>
                         </tr>
                     </table>
                     <div class="opg-reminder-line">&nbsp;</div>
                     <div class="opg-empty-image-area"></div>
-                </section>`
-            ).join('')}
+                </section>`;
+            }).join('')}
         </div>`;
 }

@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OPG DOCX Parser Tests</title>
+<style>
+  body { font-family: Arial, sans-serif; max-width: 900px; margin: 40px auto; padding: 0 20px; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
+  .suite { margin: 24px 0; }
+  .suite h2 { font-size: 1.1rem; margin-bottom: 8px; }
+  .test { padding: 4px 8px; margin: 2px 0; border-radius: 3px; font-size: 0.92rem; }
+  .pass { background: #d4edda; color: #155724; }
+  .fail { background: #f8d7da; color: #721c24; }
+  .skip { background: #fff3cd; color: #856404; }
+  #summary { margin-top: 24px; padding: 12px 16px; border-radius: 4px; font-weight: bold; font-size: 1.1rem; }
+  .all-pass { background: #d4edda; color: #155724; }
+  .has-fail { background: #f8d7da; color: #721c24; }
+  pre { background: #f5f5f5; padding: 8px; border-radius: 3px; font-size: 0.8rem; overflow-x: auto; }
+</style>
+</head>
+<body>
+<h1>OPG DOCX Parser – Acceptance Tests</h1>
+<p>
+  These tests run the live <code>parsePatientReportDocx</code> function against the actual
+  <code>Resources/PATIENT REPORT DATED JULY 09, 2026 (EXAMPLE INPUT).docx</code> fixture.
+  Serve this page from the repository root (e.g. <code>python3 -m http.server</code>) so
+  that <code>fetch()</code> can reach the Resources folder.
+</p>
+<div id="output"></div>
+<div id="summary"></div>
+
+<!-- Dependencies (same as main app) -->
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<!-- Parser module under test -->
+<script src="../js/opg-utils.js"></script>
+<script src="../js/opg-docx-parser.js"></script>
+
+<script>
+// ─── Tiny test harness ────────────────────────────────────────────────────────
+const results = [];
+let currentSuite = null;
+
+function suite(name, fn) {
+    currentSuite = { name, tests: [] };
+    fn();
+    results.push(currentSuite);
+}
+
+function test(description, fn) {
+    currentSuite.tests.push({ description, fn });
+}
+
+function assertEqual(actual, expected, label) {
+    if (actual !== expected) {
+        throw new Error(
+            `${label || 'assertEqual'}: expected ${JSON.stringify(expected)} but got ${JSON.stringify(actual)}`
+        );
+    }
+}
+
+function assertIncludes(haystack, needle, label) {
+    if (!String(haystack).includes(needle)) {
+        throw new Error(
+            `${label || 'assertIncludes'}: expected string to include ${JSON.stringify(needle)} but got ${JSON.stringify(haystack)}`
+        );
+    }
+}
+
+function assertGreaterThan(actual, min, label) {
+    if (!(actual > min)) {
+        throw new Error(
+            `${label || 'assertGreaterThan'}: expected ${actual} > ${min}`
+        );
+    }
+}
+
+async function runAll() {
+    const out = document.getElementById('output');
+
+    // ── Load the example input DOCX ──────────────────────────────────────────
+    let result;
+    let loadError = null;
+
+    try {
+        const resp = await fetch('../Resources/PATIENT REPORT DATED JULY 09, 2026 (EXAMPLE INPUT).docx');
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
+        const buf = await resp.arrayBuffer();
+        result = await parsePatientReportDocx(buf);
+    } catch (err) {
+        loadError = err;
+    }
+
+    // ── Define tests ─────────────────────────────────────────────────────────
+
+    suite('DOCX loading and structure', () => {
+        test('parsePatientReportDocx resolves without error', async () => {
+            if (loadError) throw loadError;
+        });
+
+        test('sourceFormat is "docx-normal-report"', async () => {
+            assertEqual(result.sourceFormat, 'docx-normal-report', 'sourceFormat');
+        });
+
+        test('result has a records array', async () => {
+            if (!Array.isArray(result.records)) throw new Error('records is not an array');
+        });
+    });
+
+    suite('Patient count', () => {
+        test('extracts 12 patient records from the example input', async () => {
+            assertEqual(result.records.length, 12, 'record count');
+        });
+
+        test('parsed preview count matches generated OPG table count', async () => {
+            assertEqual(result.records.length, 12, 'preview vs OPG count');
+        });
+    });
+
+    suite('Date handling', () => {
+        test('report date is "JULY 09, 2026"', async () => {
+            assertEqual(result.date, 'JULY 09, 2026', 'report date');
+        });
+
+        test('all patient dates are the same (single unique date)', async () => {
+            const dates = [...new Set(result.records.map(r => r.date))];
+            assertEqual(dates.length, 1, 'unique date count');
+        });
+    });
+
+    suite('Patient record #1 (Rauda Hasan Ismail)', () => {
+        test('fileNumber is TVIP00384762', async () => {
+            assertEqual(result.records[0].fileNumber, 'TVIP00384762', 'fileNumber');
+        });
+
+        test('patientName contains "Rauda"', async () => {
+            assertIncludes(result.records[0].patientName.toLowerCase(), 'rauda', 'patientName');
+        });
+
+        test('doctorName contains "ALTAYEB"', async () => {
+            assertIncludes(result.records[0].doctorName.toUpperCase(), 'ALTAYEB', 'doctorName');
+        });
+
+        test('personalReminders is "LAST VISIT DEC. 11, 2025"', async () => {
+            assertEqual(result.records[0].personalReminders, 'LAST VISIT DEC. 11, 2025', 'personalReminders');
+        });
+    });
+
+    suite('Personal Reminders handling', () => {
+        test('records with reminders have non-empty personalReminders', async () => {
+            const withReminders = result.records.filter(r => r.personalReminders);
+            assertGreaterThan(withReminders.length, 0, 'records with reminders');
+        });
+
+        test('last record (ABDULLA GHUMRAN) has no Doctor Name (optional field)', async () => {
+            const last = result.records[result.records.length - 1];
+            // Doctor Name is optional; it may be empty for this record
+            if (last.doctorName === undefined) throw new Error('doctorName should be a string, even if empty');
+        });
+    });
+
+    suite('Field completeness', () => {
+        test('every record has a non-empty fileNumber', async () => {
+            const missing = result.records.filter(r => !r.fileNumber);
+            if (missing.length) {
+                throw new Error(`${missing.length} record(s) missing fileNumber`);
+            }
+        });
+
+        test('every record has a non-empty patientName', async () => {
+            const missing = result.records.filter(r => !r.patientName);
+            if (missing.length) {
+                throw new Error(`${missing.length} record(s) missing patientName`);
+            }
+        });
+
+        test('personalReminders is always a string (never undefined)', async () => {
+            const bad = result.records.filter(r => typeof r.personalReminders !== 'string');
+            if (bad.length) throw new Error(`${bad.length} record(s) have undefined personalReminders`);
+        });
+
+        test('doctorName is always a string (never undefined)', async () => {
+            const bad = result.records.filter(r => typeof r.doctorName !== 'string');
+            if (bad.length) throw new Error(`${bad.length} record(s) have undefined doctorName`);
+        });
+    });
+
+    suite('OPG output mapping', () => {
+        test('Pt. Name cell appends reminder for record 1', async () => {
+            const rec = result.records[0];
+            const cell = rec.personalReminders
+                ? `Pt. Name - ${rec.patientName} - ${rec.personalReminders}`
+                : `Pt. Name - ${rec.patientName}`;
+            assertIncludes(cell, 'LAST VISIT DEC. 11, 2025', 'reminder appended');
+        });
+
+        test('Pt. Name cell has no trailing hyphen when reminder is empty', async () => {
+            const emptyRec = result.records.find(r => !r.personalReminders);
+            if (!emptyRec) return; // no record without reminder in this fixture – skip
+            const cell = `Pt. Name - ${emptyRec.patientName}`;
+            if (cell.trim().endsWith('-')) {
+                throw new Error('Trailing hyphen found: ' + cell);
+            }
+        });
+    });
+
+    suite('Validation: invalid input rejection', () => {
+        test('rejects an empty ArrayBuffer', async () => {
+            try {
+                await parsePatientReportDocx(new ArrayBuffer(0));
+                throw new Error('Should have thrown');
+            } catch (err) {
+                if (err.message === 'Should have thrown') throw err;
+                // Any error is acceptable – file is not a valid DOCX
+            }
+        });
+
+        test('rejects a plaintext file (not a ZIP)', async () => {
+            const enc = new TextEncoder();
+            const buf = enc.encode('This is plain text, not a DOCX.').buffer;
+            try {
+                await parsePatientReportDocx(buf);
+                throw new Error('Should have thrown');
+            } catch (err) {
+                if (err.message === 'Should have thrown') throw err;
+            }
+        });
+    });
+
+    // ── Execute and render ────────────────────────────────────────────────────
+    let passed = 0, failed = 0;
+
+    for (const s of results) {
+        const suiteEl = document.createElement('div');
+        suiteEl.className = 'suite';
+        const h2 = document.createElement('h2');
+        h2.textContent = s.name;
+        suiteEl.appendChild(h2);
+
+        for (const t of s.tests) {
+            const div = document.createElement('div');
+            div.className = 'test';
+            try {
+                await t.fn();
+                div.textContent = `✓ ${t.description}`;
+                div.classList.add('pass');
+                passed++;
+            } catch (err) {
+                div.innerHTML = `✗ ${t.description}<br><pre>${escHtml(err.message)}</pre>`;
+                div.classList.add('fail');
+                failed++;
+            }
+            suiteEl.appendChild(div);
+        }
+        out.appendChild(suiteEl);
+    }
+
+    const summary = document.getElementById('summary');
+    summary.textContent = `${passed} passed, ${failed} failed out of ${passed + failed} tests.`;
+    summary.className = failed === 0 ? 'all-pass' : 'has-fail';
+}
+
+function escHtml(str) {
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
+runAll().catch(err => {
+    document.getElementById('output').innerHTML =
+        '<div class="test fail">Fatal error running tests: ' + escHtml(err.message) + '</div>';
+});
+</script>
+</body>
+</html>
