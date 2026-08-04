@@ -321,7 +321,7 @@ Report Generator
 </h1>
 
 <p class="lead">
-Upload an XLSX file to generate Word or Text patient reports
+Upload a DOCX file to generate Word or Text patient reports
 </p>
 
 </header>
@@ -339,7 +339,7 @@ Upload an XLSX file to generate Word or Text patient reports
 <input
 type="file"
 id="fileInput"
-accept=".xlsx,.xls"
+accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 class="file-input"
 >
 
@@ -378,7 +378,7 @@ y2="15"
 </svg>
 
 <span class="label-text">
-Choose XLSX File
+Choose DOCX File
 </span>
 
 </label>
@@ -402,7 +402,7 @@ style="display:none;"
 <div class="card-header">
 
 <h2 class="h5 mb-0">
-XLSX Data Preview
+DOCX Data Preview
 </h2>
 
 </div>
@@ -848,6 +848,7 @@ class="status-message mt-2"
 <script src="js/normal-renderer.js"></script>
 
 <!-- Patient Report modules -->
+<script src="js/patient-report-docx-parser.js"></script>
 <script src="js/app-state.js"></script>
 <script src="js/app-utils.js"></script>
 <script src="js/app-preview.js"></script>

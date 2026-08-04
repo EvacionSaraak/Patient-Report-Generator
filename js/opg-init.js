@@ -62,7 +62,7 @@ async function handleOPGFileSelect(event) {
 
     try {
         const arrayBuffer = await file.arrayBuffer();
-        const result = await parsePatientReportDocx(arrayBuffer);
+        const result = await parseOPGInputDocx(arrayBuffer);
 
         opgRecords = result.records;
 

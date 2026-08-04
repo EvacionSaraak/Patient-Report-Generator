@@ -10,37 +10,35 @@ function setDownloadFormat(format) {
     downloadBtnText.textContent = isWordFormat ? 'Download Word Report' : 'Download Text Report';
 }
 
-// Display raw XLSX data preview table.
-// Receives rawRows.slice(headerRowIndex) so data[0] is always the header row.
-function displayPreview(data) {
-    if (!data || data.length === 0) {
-        dataPreview.innerHTML = '<p>No data found in the spreadsheet.</p>';
+// Display DOCX-parsed records preview table.
+// Receives the records array from parsePatientReportInputDocx.
+function displayPreview(records) {
+    if (!records || records.length === 0) {
+        dataPreview.innerHTML = '<p>No patient records found in the document.</p>';
         previewSection.style.display = 'block';
         return;
     }
 
+    const headers = ['File Number', 'Patient Name', 'Visit Date', 'Doctor', 'Personal Reminders'];
     let html = '<table><thead><tr>';
-
-    const headers = data[0] || [];
-    headers.forEach(header => {
-        html += `<th>${escapeHtml(String(header || ''))}</th>`;
-    });
+    headers.forEach(h => { html += `<th>${escapeHtml(h)}</th>`; });
     html += '</tr></thead><tbody>';
 
-    const previewRows = data.slice(1, 11);
-    previewRows.forEach(row => {
+    const previewRows = records.slice(0, 10);
+    previewRows.forEach(rec => {
         html += '<tr>';
-        headers.forEach((_, index) => {
-            const cellValue = row[index] !== undefined ? row[index] : '';
-            html += `<td>${escapeHtml(String(cellValue))}</td>`;
-        });
+        html += `<td>${escapeHtml(String(rec.fileNumber || ''))}</td>`;
+        html += `<td>${escapeHtml(String(rec.patientName || ''))}</td>`;
+        html += `<td>${escapeHtml(String(rec.visitDate || ''))}</td>`;
+        html += `<td>${escapeHtml(String(rec.doctor || ''))}</td>`;
+        html += `<td>${escapeHtml(String(rec.personalReminders || ''))}</td>`;
         html += '</tr>';
     });
 
     html += '</tbody></table>';
 
-    if (data.length > 11) {
-        html += `<p style="margin-top: 10px; color: #718096;">Showing 10 of ${data.length - 1} rows</p>`;
+    if (records.length > 10) {
+        html += `<p style="margin-top: 10px; color: #718096;">Showing 10 of ${records.length} records</p>`;
     }
 
     dataPreview.innerHTML = html;

@@ -1,12 +1,6 @@
 // ─── Label normalisation ──────────────────────────────────────────────────────
-// Lowercase, trim, then strip every character that is not a-z or 0-9.
-// This handles punctuation (colons, dots), spaces, underscores, hyphens, etc.
-// Examples:
-//   "Date:"           → "date"
-//   "File Number:"    → "filenumber"
-//   "Patient name:"   → "patientname"
-//   "Doctor Name:"    → "doctorname"
-function normalizeLabelKey(str) {
+// Lowercase, trim, strip every character that is not a-z or 0-9.
+function normalizePatientReportLabel(str) {
     return String(str ?? '')
         .toLowerCase()
         .trim()
@@ -14,22 +8,26 @@ function normalizeLabelKey(str) {
 }
 
 // ─── Alias tables ─────────────────────────────────────────────────────────────
-const DOCX_DATE_ALIASES = new Set(['date', 'visitdate']);
+const PR_DATE_ALIASES = new Set(['date', 'visitdate', 'encounterdate']);
 
-const DOCX_FILE_NUMBER_ALIASES = new Set([
+const PR_FILE_NUMBER_ALIASES = new Set([
     'filenumber', 'fileno', 'fileid', 'ptid', 'ptno', 'patientid'
 ]);
 
-const DOCX_PATIENT_NAME_ALIASES = new Set(['patientname', 'ptname', 'name']);
+const PR_PATIENT_NAME_ALIASES = new Set(['patientname', 'ptname', 'name']);
 
-const DOCX_DOCTOR_NAME_ALIASES = new Set([
+const PR_DOCTOR_NAME_ALIASES = new Set([
     'doctorname', 'doctor', 'clinicianname', 'clinician'
+]);
+
+const PR_REMINDERS_ALIASES = new Set([
+    'personalreminders', 'personalreminder', 'reminders', 'reminder'
 ]);
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 // Collect all w:t text nodes inside an element (namespace-safe)
-function getWmlCellText(el) {
+function getPRCellText(el) {
     const nodes = el.getElementsByTagNameNS('*', 't');
     let text = '';
     for (let i = 0; i < nodes.length; i++) {
@@ -39,7 +37,7 @@ function getWmlCellText(el) {
 }
 
 // Normalize whitespace; collapse NBSP, tabs, multiple spaces
-function cleanDocxText(str) {
+function cleanPRText(str) {
     return String(str ?? '')
         .replace(/\u00a0/g, ' ')
         .replace(/[\t\r\n]+/g, ' ')
@@ -49,11 +47,22 @@ function cleanDocxText(str) {
 
 // ─── Main parser ──────────────────────────────────────────────────────────────
 
-// Parse a patient-report DOCX ArrayBuffer into canonical patient records.
+// Parse a Patient Report input DOCX ArrayBuffer into canonical patient records.
+//
+// Expects the DOCX to contain one two-column table per patient with labelled rows:
+//   Date:            | <value>
+//   File Number:     | <value>
+//   Patient Name:    | <value>
+//   Doctor Name:     | <value>
+//   Personal Reminders: | <value>   (optional; may also be an unlabelled row)
+//
+// Unlike parseOPGInputDocx, records are allowed to have different visit dates.
+//
 // Returns:
-//   { sourceFormat: "docx-normal-report", date: string, records: [...] }
+//   { format: 'docx-patient-report', records: [{visitDate, fileNumber, patientName, doctor, personalReminders}] }
+//
 // Throws a descriptive Error on any failure.
-async function parseOPGInputDocx(arrayBuffer) {
+async function parsePatientReportInputDocx(arrayBuffer) {
     // ── 1. Unzip ───────────────────────────────────────────────────────────────
     if (typeof JSZip === 'undefined') {
         throw new Error('JSZip library is not loaded. Refresh the page and try again.');
@@ -93,11 +102,10 @@ async function parseOPGInputDocx(arrayBuffer) {
     try {
         const domParser = new DOMParser();
         xmlDoc = domParser.parseFromString(xmlString, 'application/xml');
-
-        // DOMParser sets a <parsererror> element on failure
-        const parseErr = xmlDoc.getElementsByTagNameNS(
-            'http://www.mozilla.org/newlayout/xml/parsererror.xml', 'parseerror'
-        )[0] || xmlDoc.querySelector('parsererror');
+        const parseErr =
+            xmlDoc.getElementsByTagNameNS(
+                'http://www.mozilla.org/newlayout/xml/parseerror.xml', 'parseerror'
+            )[0] || xmlDoc.querySelector('parseerror');
         if (parseErr) {
             throw new Error(parseErr.textContent || 'Unknown XML error');
         }
@@ -112,9 +120,9 @@ async function parseOPGInputDocx(arrayBuffer) {
     const tables = xmlDoc.getElementsByTagNameNS('*', 'tbl');
     if (tables.length === 0) {
         throw new Error(
-            'This DOCX does not contain the patient tables required by the OPG generator. ' +
-            'Expected one two-column patient table per record with labels such as ' +
-            '"File Number", "Patient Name", and "Date".'
+            'This DOCX does not match the expected Patient Report input format. ' +
+            'No tables were found. Expected one two-column patient table per record ' +
+            'with labels such as "File Number", "Patient Name", and "Date".'
         );
     }
 
@@ -123,7 +131,7 @@ async function parseOPGInputDocx(arrayBuffer) {
     for (let tblIdx = 0; tblIdx < tables.length; tblIdx++) {
         const tbl = tables[tblIdx];
         const rows = tbl.getElementsByTagNameNS('*', 'tr');
-        if (rows.length === 0) continue; // skip fully empty tables
+        if (rows.length === 0) continue;
 
         // Collect {left, right} for each row
         const parsedRows = [];
@@ -132,9 +140,9 @@ async function parseOPGInputDocx(arrayBuffer) {
             const cells = row.getElementsByTagNameNS('*', 'tc');
             if (cells.length === 0) continue;
 
-            const leftText  = cleanDocxText(getWmlCellText(cells[0]));
+            const leftText  = cleanPRText(getPRCellText(cells[0]));
             const rightText = cells.length > 1
-                ? cleanDocxText(getWmlCellText(cells[1]))
+                ? cleanPRText(getPRCellText(cells[1]))
                 : '';
 
             parsedRows.push({ left: leftText, right: rightText });
@@ -142,65 +150,54 @@ async function parseOPGInputDocx(arrayBuffer) {
 
         if (parsedRows.length === 0) continue;
 
-        // Classify rows
+        // Classify rows by label
         const fields = {};
-        let personalReminders = null; // set on first unlabelled row
+        let personalReminders = null;
 
         for (const { left, right } of parsedRows) {
-            const key = normalizeLabelKey(left);
+            const key = normalizePatientReportLabel(left);
 
-            if (DOCX_DATE_ALIASES.has(key)) {
-                fields.date = right;
-            } else if (DOCX_FILE_NUMBER_ALIASES.has(key)) {
+            if (PR_DATE_ALIASES.has(key)) {
+                fields.visitDate = right;
+            } else if (PR_FILE_NUMBER_ALIASES.has(key)) {
                 fields.fileNumber = right;
-            } else if (DOCX_PATIENT_NAME_ALIASES.has(key)) {
+            } else if (PR_PATIENT_NAME_ALIASES.has(key)) {
                 fields.patientName = right;
-            } else if (DOCX_DOCTOR_NAME_ALIASES.has(key)) {
-                fields.doctorName = right;
+            } else if (PR_DOCTOR_NAME_ALIASES.has(key)) {
+                fields.doctor = right;
+            } else if (PR_REMINDERS_ALIASES.has(key)) {
+                personalReminders = right;
             } else if (personalReminders === null && !key) {
-                // First row whose left cell has no recognised label
-                // → treat right cell as Personal Reminders (may be empty)
+                // First unlabelled row → Personal Reminders (may be empty)
                 personalReminders = right;
             }
         }
 
-        // Require both fileNumber and patientName; skip otherwise
-        const fn = cleanDocxText(fields.fileNumber || '');
-        const pn = cleanDocxText(fields.patientName || '');
+        // Require at least fileNumber and patientName; skip tables that lack both
+        const fn = cleanPRText(fields.fileNumber || '');
+        const pn = cleanPRText(fields.patientName || '');
         if (!fn || !pn) continue;
 
         records.push({
-            date:               cleanDocxText(fields.date || ''),
-            fileNumber:         fn,
-            patientName:        pn,
-            doctorName:         cleanDocxText(fields.doctorName || ''),
-            personalReminders:  cleanDocxText(personalReminders || '')
+            visitDate:         cleanPRText(fields.visitDate || ''),
+            fileNumber:        fn,
+            patientName:       pn,
+            doctor:            cleanPRText(fields.doctor || ''),
+            personalReminders: cleanPRText(personalReminders || '')
         });
     }
 
     // ── 5. Validate results ───────────────────────────────────────────────────
     if (records.length === 0) {
         throw new Error(
-            'This DOCX does not contain the patient tables required by the OPG generator. ' +
-            'No records with a File Number and Patient Name were found.'
-        );
-    }
-
-    // ── 6. Validate dates ─────────────────────────────────────────────────────
-    const uniqueDates = [...new Set(records.map(r => r.date).filter(Boolean))];
-
-    if (uniqueDates.length > 1) {
-        throw new Error(
-            'Multiple different dates were found in the input: ' +
-            uniqueDates.join(', ') +
-            '. All patient records must share the same date to generate an OPG report. ' +
-            'Please correct the input document and try again.'
+            'This DOCX does not match the expected Patient Report input format. ' +
+            'No patient records with a File Number and Patient Name were found. ' +
+            'Expected one two-column labelled table per patient.'
         );
     }
 
     return {
-        sourceFormat: 'docx-normal-report',
-        date:         uniqueDates[0] || '',
+        format: 'docx-patient-report',
         records
     };
 }

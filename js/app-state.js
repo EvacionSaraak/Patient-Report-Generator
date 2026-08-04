@@ -1,5 +1,4 @@
 // Global state
-let workbookData = null;
 let parsedData = null;
 let selectedDownloadFormat = 'docx';
 
