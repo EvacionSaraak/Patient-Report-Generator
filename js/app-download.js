@@ -8,8 +8,6 @@ async function generateReport() {
     await generateWordDocument();
 }
 
-// Generate Word document using docxtemplater and the patient_report_template.docx.
-// Consumes canonical records from parsedData (set by parseNormalSheet).
 async function generateWordDocument() {
     if (!parsedData || !parsedData.records || parsedData.records.length === 0) {
         showStatus('No data to export.', 'error');
@@ -20,40 +18,29 @@ async function generateWordDocument() {
         showStatus('Generating Word document...', 'info');
         downloadBtn.disabled = true;
 
-        if (typeof PizZip === 'undefined' || typeof docxtemplater === 'undefined') {
-            throw new Error('Templating libraries not loaded. Please refresh the page.');
+        let lib = window.docx;
+        if (!lib && typeof docx !== 'undefined') {
+            lib = docx;
         }
-        if (typeof PATIENT_REPORT_TEMPLATE_B64 === 'undefined') {
-            throw new Error('Report template not found. Please refresh the page.');
+        if (!lib) {
+            throw new Error('docx library is not loaded. Please refresh the page and try again.');
         }
-
-        const patients = parsedData.records.map(record => {
-            const reminder = record.personalReminders;
-            const remUpper = reminder.toUpperCase();
-            return {
-                file_no:    record.fileNumber,
-                pt_name:    record.patientName,
-                visit_date: formatDate(record.visitDate),
-                dr:         record.doctor,
-                reminder,
-                is_yellow: remUpper.startsWith('LAST VISIT'),
-                is_green:  remUpper.startsWith('NEW PATIENT'),
-            };
+        const contentToUse = createNormalDocumentContent(parsedData, lib);
+        const doc = new lib.Document({
+            sections: [{
+                properties: {},
+                children: contentToUse
+            }]
         });
-
-        const zip = new PizZip(PATIENT_REPORT_TEMPLATE_B64, { base64: true });
-        const doc = new docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
-        doc.render({ patients });
 
         const dateRange = getDateRange(parsedData.records);
-        let filename = 'PATIENT REPORT DATED ';
-        filename += dateRange.min ? dateRange.min : 'Unknown';
-        filename += '.docx';
-
-        const blob = doc.getZip().generate({
-            type: 'blob',
-            mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-        });
+        let filename = 'PATIENT REPORT _ DATED ';
+        if (dateRange.min && dateRange.max) {
+            filename += `${dateRange.min} - ${dateRange.max}.docx`;
+        } else {
+            filename += 'Unknown.docx';
+        }
+        const blob = await lib.Packer.toBlob(doc);
         saveAs(blob, filename);
 
         showStatus('Word document generated successfully!', 'success');
@@ -65,7 +52,6 @@ async function generateWordDocument() {
     }
 }
 
-// Generate plain-text document from the current text preview content.
 function generateTextDocument() {
     if (!parsedData || !parsedData.records || parsedData.records.length === 0) {
         showStatus('No data to export.', 'error');
@@ -84,7 +70,7 @@ function generateTextDocument() {
             filename += 'Unknown.txt';
         }
 
-        const content = textPreview.textContent || '';
+        const content = generateNormalTextReport(parsedData);
         const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
         saveAs(blob, filename);
 
