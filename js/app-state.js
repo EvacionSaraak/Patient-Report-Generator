@@ -3,7 +3,7 @@ let parsedData = null;
 let selectedDownloadFormat = 'docx';
 
 // DOM elements
-const fileInput = document.getElementById('fileInput');
+const fileInput = document.getElementById('patient-report-file-input');
 const fileName = document.getElementById('fileName');
 const downloadBtn = document.getElementById('downloadBtn');
 const downloadBtnText = document.getElementById('downloadBtnText');

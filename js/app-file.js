@@ -1,4 +1,4 @@
-// Handle file selection and initiate DOCX parsing
+// Handle file selection and initiate XLSX parsing
 async function handleFileSelect(event) {
     const file = event.target.files[0];
 
@@ -6,9 +6,9 @@ async function handleFileSelect(event) {
         return;
     }
 
-    if (!/\.docx$/i.test(file.name)) {
+    if (!/\.xlsx$/i.test(file.name)) {
         event.target.value = '';
-        showStatus('Please select a .docx file (Word 2007+). Excel and legacy .doc files are not accepted.', 'error');
+        showStatus('Please select a .xlsx file (Excel 2007+). DOCX, XLS and CSV files are not accepted.', 'error');
         return;
     }
 
@@ -17,7 +17,7 @@ async function handleFileSelect(event) {
 
     try {
         const arrayBuffer = await file.arrayBuffer();
-        await parseDocxInput(arrayBuffer);
+        await parseXlsxInput(arrayBuffer);
         showStatus('File loaded successfully!', 'success');
         downloadBtn.disabled = false;
     } catch (error) {
@@ -26,13 +26,18 @@ async function handleFileSelect(event) {
     }
 }
 
-// Parse Patient Report DOCX and set up all previews.
-// parsedData is set to the canonical object returned by parsePatientReportInputDocx:
-//   { format, records: [{visitDate, fileNumber, patientName, doctor, personalReminders}] }
-async function parseDocxInput(arrayBuffer) {
-    const canonical = await parsePatientReportInputDocx(arrayBuffer);
+// Parse Patient Report XLSX and set up all previews.
+// parsedData is set to the canonical object returned by parsePatientReportXlsx:
+//   { format, records: [{fileNumber, visitId, patientName, visitDate, doctor, personalReminders, query, status}], warnings }
+async function parseXlsxInput(arrayBuffer) {
+    const canonical = parsePatientReportXlsx(arrayBuffer);
 
     parsedData = canonical;
+
+    // Show row-skip warnings
+    if (canonical.warnings && canonical.warnings.length > 0) {
+        showStatus(canonical.warnings.join('\n'), 'warning');
+    }
 
     displayPreview(canonical.records);
     generateWordPreview(parsedData);

@@ -10,16 +10,16 @@ function setDownloadFormat(format) {
     downloadBtnText.textContent = isWordFormat ? 'Download Word Report' : 'Download Text Report';
 }
 
-// Display DOCX-parsed records preview table.
-// Receives the records array from parsePatientReportInputDocx.
+// Display XLSX-parsed records preview table.
+// Receives the records array from parsePatientReportXlsx.
 function displayPreview(records) {
     if (!records || records.length === 0) {
-        dataPreview.innerHTML = '<p>No patient records found in the document.</p>';
+        dataPreview.innerHTML = '<p>No patient records found in the file.</p>';
         previewSection.style.display = 'block';
         return;
     }
 
-    const headers = ['File Number', 'Patient Name', 'Visit Date', 'Doctor', 'Personal Reminders'];
+    const headers = ['PT ID.', 'VISIT ID.', 'Patient Name', 'Visit Date', 'Doctor', 'Personal Reminders', 'Query', 'Status'];
     let html = '<table><thead><tr>';
     headers.forEach(h => { html += `<th>${escapeHtml(h)}</th>`; });
     html += '</tr></thead><tbody>';
@@ -28,10 +28,13 @@ function displayPreview(records) {
     previewRows.forEach(rec => {
         html += '<tr>';
         html += `<td>${escapeHtml(String(rec.fileNumber || ''))}</td>`;
+        html += `<td>${escapeHtml(String(rec.visitId || ''))}</td>`;
         html += `<td>${escapeHtml(String(rec.patientName || ''))}</td>`;
         html += `<td>${escapeHtml(String(rec.visitDate || ''))}</td>`;
         html += `<td>${escapeHtml(String(rec.doctor || ''))}</td>`;
         html += `<td>${escapeHtml(String(rec.personalReminders || ''))}</td>`;
+        html += `<td>${escapeHtml(String(rec.query || ''))}</td>`;
+        html += `<td>${escapeHtml(String(rec.status || ''))}</td>`;
         html += '</tr>';
     });
 
