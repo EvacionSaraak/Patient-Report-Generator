@@ -22,9 +22,11 @@ async function generateWordDocument() {
         if (!lib && typeof docx !== 'undefined') {
             lib = docx;
         }
+
         if (!lib) {
             throw new Error('docx library is not loaded. Please refresh the page and try again.');
         }
+
         const contentToUse = createNormalDocumentContent(parsedData, lib);
         const doc = new lib.Document({
             sections: [{
@@ -34,12 +36,15 @@ async function generateWordDocument() {
         });
 
         const dateRange = getDateRange(parsedData.records);
+        const formattedDateRange = formatDateRange(dateRange);
         let filename = 'PATIENT REPORT _ DATED ';
-        if (dateRange.min && dateRange.max) {
-            filename += `${dateRange.min} - ${dateRange.max}.docx`;
+
+        if (formattedDateRange) {
+            filename += `${formattedDateRange}.docx`;
         } else {
             filename += 'Unknown.docx';
         }
+
         const blob = await lib.Packer.toBlob(doc);
         saveAs(blob, filename);
 
@@ -63,9 +68,11 @@ function generateTextDocument() {
         downloadBtn.disabled = true;
 
         const dateRange = getDateRange(parsedData.records);
+        const formattedDateRange = formatDateRange(dateRange);
         let filename = 'PATIENT REPORT _ DATED ';
-        if (dateRange.min && dateRange.max) {
-            filename += `${dateRange.min} - ${dateRange.max}.txt`;
+
+        if (formattedDateRange) {
+            filename += `${formattedDateRange}.txt`;
         } else {
             filename += 'Unknown.txt';
         }
