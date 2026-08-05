@@ -28,7 +28,6 @@ function excelDateToJSDate(serial) {
         const utc_days = Math.floor(serial - 25569);
         const utc_value = utc_days * 86400;
         const date_info = new Date(utc_value * 1000);
-
         const fractional_day = serial - Math.floor(serial) + 0.0000001;
         let total_seconds = Math.floor(86400 * fractional_day);
         const seconds = total_seconds % 60;
@@ -36,11 +35,19 @@ function excelDateToJSDate(serial) {
         const hours = Math.floor(total_seconds / (60 * 60));
         const minutes = Math.floor(total_seconds / 60) % 60;
 
-        const date = new Date(date_info.getFullYear(), date_info.getMonth(), date_info.getDate(), hours, minutes, seconds);
-
+        const date = new Date(
+            date_info.getFullYear(),
+            date_info.getMonth(),
+            date_info.getDate(),
+            hours,
+            minutes,
+            seconds
+        );
         const day = date.getDate();
-        const monthNames = ["January", "February", "March", "April", "May", "June",
-                           "July", "August", "September", "October", "November", "December"];
+        const monthNames = [
+            'January', 'February', 'March', 'April', 'May', 'June',
+            'July', 'August', 'September', 'October', 'November', 'December'
+        ];
         const month = monthNames[date.getMonth()];
         const year = date.getFullYear();
 
@@ -68,8 +75,10 @@ function formatHeaderDate(dateValue) {
         return String(dateValue);
     }
 
-    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
-                       "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const monthNames = [
+        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
     const month = monthNames[date.getMonth()];
     const day = date.getDate();
 
@@ -82,20 +91,20 @@ function getDateRange(records) {
     if (!records || records.length === 0) return { min: '', max: '' };
 
     const dates = records
-        .map(r => r.visitDate)
-        .filter(d => d != null && d !== '');
+        .map(record => record.visitDate)
+        .filter(date => date != null && date !== '');
 
     if (dates.length === 0) return { min: '', max: '' };
 
-    const comparableDates = dates.map(d => {
-        if (typeof d === 'number') return d;
-        const parsed = new Date(d);
+    const comparableDates = dates.map(date => {
+        if (typeof date === 'number') return date;
+
+        const parsed = new Date(date);
         return isNaN(parsed.getTime()) ? 0 : parsed.getTime();
     });
 
     const minValue = Math.min(...comparableDates);
     const maxValue = Math.max(...comparableDates);
-
     const minIndex = comparableDates.indexOf(minValue);
     const maxIndex = comparableDates.indexOf(maxValue);
 
@@ -103,6 +112,18 @@ function getDateRange(records) {
         min: formatHeaderDate(dates[minIndex]),
         max: formatHeaderDate(dates[maxIndex])
     };
+}
+
+// Convert a date range object into display text.
+// Identical dates collapse from "Aug 1 - Aug 1" to "Aug 1".
+function formatDateRange(dateRange) {
+    if (!dateRange || !dateRange.min || !dateRange.max) {
+        return '';
+    }
+
+    return dateRange.min === dateRange.max
+        ? dateRange.min
+        : `${dateRange.min} - ${dateRange.max}`;
 }
 
 // Helper function to format any date value
