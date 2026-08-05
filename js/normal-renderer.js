@@ -4,17 +4,21 @@ function getNormalRemarks(personalReminders) {
     if (!personalReminders) {
         return '';
     }
+
     const remindersStr = String(personalReminders).toUpperCase();
     if (remindersStr.includes('OPG')) {
         return 'Patient with new OPG';
     }
+
     return '';
 }
 
 function getNormalReportHeaderText(parsed) {
     const dateRange = getDateRange(parsed.records || []);
-    return dateRange.min && dateRange.max
-        ? `PATIENT REPORT | ${dateRange.min} - ${dateRange.max}`
+    const formattedDateRange = formatDateRange(dateRange);
+
+    return formattedDateRange
+        ? `PATIENT REPORT | ${formattedDateRange}`
         : 'PATIENT REPORT';
 }
 
@@ -70,6 +74,7 @@ function generateNormalTextReport(parsed) {
         lines.push(` File Number: ${record.fileNumber || ''}`);
         lines.push(` Patient Name: ${record.patientName || ''}`);
         lines.push(` Doctor Name: ${record.doctor || ''}`);
+
         if (remarks && remarks.trim()) {
             lines.push(` Remarks: ${remarks}`);
         }
